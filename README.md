@@ -14,6 +14,13 @@ Windows password manager prototype in C++ with a modern Win32 UI.
 .\scripts\build.ps1
 ```
 
+## Install from GitHub (terminal)
+```powershell
+git clone https://github.com/RaGeeSK/lusakey.git
+cd lusakey
+.\scripts\build.ps1
+```
+
 ## Installer
 ```powershell
 .\scripts\make_installer.ps1
