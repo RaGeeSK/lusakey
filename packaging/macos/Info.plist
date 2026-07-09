@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>lusakey</string>
+    <key>CFBundleDisplayName</key>
+    <string>lusakey</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.lusakey.app</string>
+    <key>CFBundleVersion</key>
+    <string>0.1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>lusakey</string>
+    <key>CFBundleIconFile</key>
+    <string>lusakey.icns</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>lusakey</string>
+    <!--
+      Deliberately no NSCameraUsageDescription / NSMicrophoneUsageDescription /
+      network-client entitlement: this app is fully local/offline and has no
+      camera or microphone feature (TOTP QR import is from an image file, not
+      a live camera — see docs/VAULT_FORMAT.md and AGENTS.md).
+    -->
+</dict>
+</plist>

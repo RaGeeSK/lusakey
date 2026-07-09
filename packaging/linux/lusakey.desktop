@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lusakey
+Comment=Local, cross-platform password manager with built-in TOTP
+Exec=lusakey
+Icon=lusakey
+Terminal=false
+Categories=Utility;Security;
+StartupWMClass=lusakey

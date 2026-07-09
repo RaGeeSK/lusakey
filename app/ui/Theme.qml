@@ -1,0 +1,100 @@
+pragma Singleton
+import QtQuick
+
+// Design-token singleton for the whole app — Claude-inspired warm palette,
+// see AGENTS.md for the source of these values and the reasoning behind
+// them (font substitutes, contrast notes, etc). Every component/screen
+// should reference Theme.* rather than hardcoding a color/size/font.
+QtObject {
+    id: theme
+
+    // Toggle to switch the whole app's palette; SettingsScreen binds this
+    // directly. main.cpp/Main.qml may also set it once at startup from
+    // Qt.styleHints.colorScheme to follow the OS theme by default.
+    property bool darkMode: false
+
+    // ---- Light palette ----
+    readonly property color _lightBgCanvas: "#F5F2E9"
+    readonly property color _lightBgBase: "#F7F4EC"
+    readonly property color _lightSurface: "#FDFBF6"
+    readonly property color _lightSurfaceRaised: "#FFFFFF"
+    readonly property color _lightBorderSubtle: "#E5E0D5"
+    readonly property color _lightBorderDefault: "#DDD6C7"
+    readonly property color _lightTextPrimary: "#2B2823"
+    readonly property color _lightTextSecondary: "#6F6B60"
+    readonly property color _lightTextDisabled: "#A39E90"
+    readonly property color _lightAccent: "#DA7756"
+    readonly property color _lightAccentHover: "#C86A48"
+    readonly property color _lightAccentPressed: "#A8532E"
+    readonly property color _lightAccentSubtle: "#1FDA7756"
+    readonly property color _lightSuccess: "#3F7B5C"
+    readonly property color _lightWarning: "#C68A2E"
+    readonly property color _lightDanger: "#C1392B"
+
+    // ---- Dark palette ----
+    readonly property color _darkBgCanvas: "#1F1B16"
+    readonly property color _darkBgBase: "#221D17"
+    readonly property color _darkSurface: "#2F2820"
+    readonly property color _darkSurfaceRaised: "#3A3128"
+    readonly property color _darkBorderSubtle: "#453B2F"
+    readonly property color _darkBorderDefault: "#52473A"
+    readonly property color _darkTextPrimary: "#EDE9E0"
+    readonly property color _darkTextSecondary: "#B0A99B"
+    readonly property color _darkTextDisabled: "#766F60"
+    readonly property color _darkAccent: "#E08663"
+    readonly property color _darkAccentHover: "#E89876"
+    readonly property color _darkAccentPressed: "#C96B49"
+    readonly property color _darkAccentSubtle: "#29E08663"
+    readonly property color _darkSuccess: "#6FAE85"
+    readonly property color _darkWarning: "#E0A94E"
+    readonly property color _darkDanger: "#E2685A"
+
+    // ---- Resolved tokens (what components actually bind to) ----
+    readonly property color bgCanvas: darkMode ? _darkBgCanvas : _lightBgCanvas
+    readonly property color bgBase: darkMode ? _darkBgBase : _lightBgBase
+    readonly property color surface: darkMode ? _darkSurface : _lightSurface
+    readonly property color surfaceRaised: darkMode ? _darkSurfaceRaised : _lightSurfaceRaised
+    readonly property color borderSubtle: darkMode ? _darkBorderSubtle : _lightBorderSubtle
+    readonly property color borderDefault: darkMode ? _darkBorderDefault : _lightBorderDefault
+    readonly property color textPrimary: darkMode ? _darkTextPrimary : _lightTextPrimary
+    readonly property color textSecondary: darkMode ? _darkTextSecondary : _lightTextSecondary
+    readonly property color textDisabled: darkMode ? _darkTextDisabled : _lightTextDisabled
+    readonly property color accent: darkMode ? _darkAccent : _lightAccent
+    readonly property color accentHover: darkMode ? _darkAccentHover : _lightAccentHover
+    readonly property color accentPressed: darkMode ? _darkAccentPressed : _lightAccentPressed
+    readonly property color accentSubtle: darkMode ? _darkAccentSubtle : _lightAccentSubtle
+    readonly property color success: darkMode ? _darkSuccess : _lightSuccess
+    readonly property color warning: darkMode ? _darkWarning : _lightWarning
+    readonly property color danger: darkMode ? _darkDanger : _lightDanger
+    readonly property color onAccentText: "#FFFFFF"
+
+    // ---- Typography ----
+    // "Inter" / "JetBrains Mono" are open-license stand-ins for Claude's
+    // actual (proprietary, non-bundleable) Styrene/Tiempos — see AGENTS.md.
+    readonly property string fontFamily: "Inter"
+    readonly property string monoFontFamily: "JetBrains Mono"
+
+    readonly property int fontSizeH1: 28
+    readonly property int fontSizeH2: 20
+    readonly property int fontSizeH3: 16
+    readonly property int fontSizeBody: 14
+    readonly property int fontSizeCaption: 12
+    readonly property int fontSizeMono: 17
+    readonly property int fontSizeMonoLarge: 32
+
+    // ---- Spacing scale (4px base) ----
+    readonly property int space1: 4
+    readonly property int space2: 8
+    readonly property int space3: 12
+    readonly property int space4: 16
+    readonly property int space5: 24
+    readonly property int space6: 32
+    readonly property int space7: 48
+    readonly property int space8: 64
+
+    // ---- Corner radius scale ----
+    readonly property int radiusSm: 6
+    readonly property int radiusMd: 10
+    readonly property int radiusLg: 14
+    readonly property int radiusXl: 20
+}

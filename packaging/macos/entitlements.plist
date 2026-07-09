@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      Hardened Runtime, deliberately minimal entitlements: the app is fully
+      offline and doesn't need network-client, camera, microphone, or JIT
+      entitlements. An offline password manager requesting broad
+      entitlements would itself be a red flag during a security review —
+      keep this list as short as possible as the app grows.
+    -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <false/>
+</dict>
+</plist>
