@@ -35,6 +35,11 @@
     Пропустить установку Qt6 (например, если нужно собрать только ядро
     без GUI — LUSAKEY_BUILD_APP=OFF по умолчанию и так не требует Qt).
 
+.PARAMETER SkipPackaging
+    Пропустить установку Inno Setup и GitHub CLI (нужны только для
+    scripts\windows\build-release.ps1 — сборки инсталлятора/портативного
+    zip и публикации релиза на GitHub).
+
 .EXAMPLE
     .\setup-toolchain.ps1
     .\setup-toolchain.ps1 -SkipQt
@@ -46,7 +51,8 @@ param(
     [string]$VcpkgDir = "C:\dev\vcpkg",
     [string]$QtDir = "C:\Qt",
     [string]$QtVersion = "6.7.3",
-    [switch]$SkipQt
+    [switch]$SkipQt,
+    [switch]$SkipPackaging
 )
 
 $ErrorActionPreference = "Stop"
@@ -143,6 +149,16 @@ if (-not $SkipQt) {
     Write-Host "    cmake --preset windows-x64 -DLUSAKEY_BUILD_APP=ON -DCMAKE_PREFIX_PATH=`"$qtInstallDir\msvc2022_64`""
 } else {
     Write-Step "Qt6 пропущен (-SkipQt) — сборка GUI (LUSAKEY_BUILD_APP=ON) будет недоступна, пока Qt не поставится отдельно."
+}
+
+if (-not $SkipPackaging) {
+    Write-Step "Inno Setup + GitHub CLI (для scripts\windows\build-release.ps1)"
+    Install-WingetPackage "JRSoftware.InnoSetup"
+    Install-WingetPackage "GitHub.cli"
+    Update-SessionPath
+    Write-Host "  После установки GitHub CLI выполните `gh auth login` один раз (интерактивно), прежде чем скрипт сборки релиза сможет публиковать на GitHub."
+} else {
+    Write-Step "Inno Setup/GitHub CLI пропущены (-SkipPackaging) — build-release.ps1 будет недоступен, пока их нет."
 }
 
 Write-Step "Готово"

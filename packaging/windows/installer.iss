@@ -1,12 +1,9 @@
 ; Inno Setup script for lusakey (Windows installer).
 ;
-; Before compiling this script:
-;   1. Build lusakey in Release mode (cmake --build --preset windows-x64 --config Release).
-;   2. Run windeployqt on the built lusakey.exe so all required Qt6 DLLs,
-;      platform plugins, and QML modules are staged alongside it — this
-;      script only packages what's already in SourceDir below, it doesn't
-;      run windeployqt itself.
-;   3. Compile with: iscc installer.iss   (or open in the Inno Setup IDE)
+; Not meant to be run by hand — scripts\windows\build-release.ps1 builds the
+; Release config, stages it with windeployqt into SourceDir below, and then
+; invokes `iscc installer.iss` as its last step. Run that script instead of
+; this file directly unless you've already done the equivalent staging.
 ;
 ; No code-signing directive is included here — sign the built lusakey.exe
 ; AND the installer .exe this script produces with signtool separately,
@@ -14,10 +11,12 @@
 ; Unsigned builds will trigger a Windows SmartScreen warning on first run.
 
 #define AppName "lusakey"
-#define AppVersion "0.1.0"
+#ifndef AppVersion
+  #define AppVersion "0.1.0"
+#endif
 #define AppPublisher "lusakey"
 #define AppExeName "lusakey.exe"
-#define SourceDir "..\..\build\windows-x64\app"
+#define SourceDir "..\..\build\windows-x64-release\dist\lusakey"
 
 [Setup]
 AppId={{6C3F3E2A-6B7B-4E90-9C8E-8E9C7A9B9C10}
@@ -30,8 +29,8 @@ OutputDir=..\..\build\installers
 OutputBaseFilename=lusakey-{#AppVersion}-setup
 Compression=lzma2
 SolidCompression=yes
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 
 [Languages]

@@ -63,6 +63,14 @@ target_link_libraries(lusakey PRIVATE
 
 target_compile_features(lusakey PRIVATE cxx_std_20)
 
+# GUI app, not a console tool — without this, Windows launches lusakey.exe
+# with a visible console window behind the QML window (stdout/stderr from
+# Qt's logging still work, they just go nowhere visible, same as any other
+# desktop app).
+if(WIN32)
+    set_target_properties(lusakey PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
 # Copy any bundled font files (see resources/fonts/README.md — not committed
 # to the repo, downloaded separately) next to the built executable, where
 # main.cpp's loadBundledFonts() looks for them (applicationDirPath()+"/fonts").
