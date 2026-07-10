@@ -29,16 +29,27 @@ qt_add_qml_module(lusakey
         ui/components/AppButton.qml
         ui/components/Card.qml
         ui/components/AppTextField.qml
+        ui/components/AppTextArea.qml
         ui/components/Chip.qml
         ui/components/SidebarItem.qml
         ui/components/PasswordStrengthMeter.qml
         ui/components/TotpRing.qml
+        ui/components/AppSpinBox.qml
+        ui/components/AppSwitch.qml
+        ui/components/AppCheckBox.qml
+        ui/components/AppSlider.qml
+        ui/components/EyeIcon.qml
+        ui/components/LockIcon.qml
+        ui/components/WarningIcon.qml
+        ui/components/CloseIcon.qml
+        ui/components/CheckIcon.qml
         ui/screens/UnlockScreen.qml
         ui/screens/VaultListScreen.qml
         ui/screens/EntryDetailPanel.qml
         ui/screens/TotpView.qml
         ui/screens/GeneratorDialog.qml
         ui/screens/SettingsScreen.qml
+        ui/screens/RecoverySetupDialog.qml
 )
 
 target_link_libraries(lusakey PRIVATE
@@ -51,6 +62,21 @@ target_link_libraries(lusakey PRIVATE
 )
 
 target_compile_features(lusakey PRIVATE cxx_std_20)
+
+# Copy any bundled font files (see resources/fonts/README.md — not committed
+# to the repo, downloaded separately) next to the built executable, where
+# main.cpp's loadBundledFonts() looks for them (applicationDirPath()+"/fonts").
+# Tolerant of the files being absent (e.g. a fresh checkout before running
+# the download step) — just copies whatever currently exists at configure time.
+file(GLOB LUSAKEY_FONT_FILES "${CMAKE_SOURCE_DIR}/resources/fonts/*.ttf")
+if(LUSAKEY_FONT_FILES)
+    add_custom_command(TARGET lusakey POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:lusakey>/fonts"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LUSAKEY_FONT_FILES} "$<TARGET_FILE_DIR:lusakey>/fonts"
+        COMMENT "Copying bundled fonts next to the lusakey executable"
+        VERBATIM
+    )
+endif()
 
 # --- Linux packaging metadata ---
 # Windows/macOS packaging (windeployqt+Inno Setup, macdeployqt+notarize.sh)

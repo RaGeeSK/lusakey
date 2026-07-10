@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -15,12 +14,15 @@
 #include "lusakey/core/crypto/secure_bytes.h"
 #include "lusakey/core/util/password_generator.h"
 #include "lusakey/core/vault/entry.h"
+#include "lusakey/core/vault/vault_file.h"
 #include "lusakey/core/vault/vault_model.h"
 
 namespace lusakey::core::vault {
 
 enum class ServiceError {
     WrongPassword,
+    WrongAnswers,
+    RecoveryNotConfigured,
     FileCorrupt,
     FileNotFound,
     NotUnlocked,
@@ -66,8 +68,8 @@ public:
     VaultService& operator=(VaultService&&) = default;
 
     // Creates a brand-new vault at `path` and immediately persists it
-    // (unlocked, empty). Throws ServiceException(InvalidArgument) if
-    // `masterPassword` is empty.
+    // (unlocked, empty, no recovery configured). Throws
+    // ServiceException(InvalidArgument) if `masterPassword` is empty.
     void createVault(const std::filesystem::path& path, std::string_view masterPassword,
                       const crypto::KdfParams& kdfParams = crypto::KdfParams::balanced());
 
@@ -75,16 +77,63 @@ public:
     // ServiceException with FileNotFound / FileCorrupt / WrongPassword.
     void unlock(const std::filesystem::path& path, std::string_view masterPassword);
 
-    // Zeroes the in-memory decrypted state and the derived key. Safe to call
-    // when already locked.
+    // Opens and decrypts `path` using answers to its configured secret
+    // questions instead of the master password (see setupRecovery()).
+    // `answers` must be in the same order as recoveryQuestions() /
+    // getRecoveryQuestions(path) returns them. Throws ServiceException with
+    // FileNotFound / FileCorrupt / RecoveryNotConfigured / WrongAnswers.
+    //
+    // Security note: secret-question answers are inherently lower-entropy
+    // and more guessable/socially-engineerable than a real master password —
+    // this is a deliberate usability/security trade-off the user asked for,
+    // not an oversight. See AGENTS.md.
+    void unlockWithRecoveryAnswers(const std::filesystem::path& path, const std::vector<std::string>& answers);
+
+    // Zeroes the in-memory decrypted state (DEK and both key slots). Safe to
+    // call when already locked.
     void lock();
 
     bool isUnlocked() const { return unlocked_; }
 
-    // Re-keys the vault under a new master password (fresh salt, full
-    // re-encrypt). Throws ServiceException(WrongPassword) if `oldPassword`
-    // doesn't match, or (InvalidArgument) if `newPassword` is empty.
+    // Re-keys the password slot under a new master password (fresh salt,
+    // the DEK itself and the body/recovery slot are untouched). Throws
+    // ServiceException(WrongPassword) if `oldPassword` doesn't match, or
+    // (InvalidArgument) if `newPassword` is empty.
     void changeMasterPassword(std::string_view oldPassword, std::string_view newPassword);
+
+    // Configures (or replaces) the recovery slot from a user-chosen list of
+    // secret questions/answers — the count is entirely up to the caller
+    // (the UI lets the user add/remove as many as they want; at least one
+    // is required). `answers[i]` corresponds to `questions[i]`. Requires
+    // isUnlocked(). Throws ServiceException(InvalidArgument) if the lists
+    // are empty, mismatched in length, or contain an empty answer.
+    void setupRecovery(const std::vector<std::string>& questions, const std::vector<std::string>& answers,
+                        const crypto::KdfParams& kdfParams = crypto::KdfParams::balanced());
+
+    // Removes the recovery slot entirely. Requires isUnlocked().
+    void disableRecovery();
+
+    bool recoveryEnabled() const { return recoveryEnabled_; }
+    const std::vector<std::string>& recoveryQuestions() const { return recoveryQuestions_; }
+
+    // Reads just enough of `path` to answer "does this vault have recovery
+    // configured" / "what are its questions" WITHOUT unlocking — the
+    // question prompts are plaintext in the header by design (not secret;
+    // real secret-question flows show the question before the answer is
+    // entered). Return an empty/false result (rather than throwing) if the
+    // file is missing, corrupt, or has no recovery configured — these are
+    // read-only conveniences for the unlock screen, not operations whose
+    // failure the caller needs to react to differently.
+    static bool hasRecovery(const std::filesystem::path& path);
+    static std::vector<std::string> getRecoveryQuestions(const std::filesystem::path& path);
+
+    // Permanently deletes the vault file at `path` — the "forgot password,
+    // delete everything and start over" escape hatch. Irreversible: without
+    // the master password or configured recovery answers, the vault's
+    // contents cannot be decrypted anyway, so there is nothing to salvage.
+    // Does not require isUnlocked() (that's the whole point). No-op if the
+    // file doesn't exist. Throws ServiceException(IoError) if deletion fails.
+    static void resetVault(const std::filesystem::path& path);
 
     // All of the following require isUnlocked() — otherwise throw
     // ServiceException(NotUnlocked).
@@ -106,10 +155,10 @@ public:
     // grouped on VaultService to keep a single call surface for the GUI/host.
     std::string generatePassword(const util::PasswordGeneratorOptions& options = {}) const;
 
-    // Re-encrypts (fresh nonce, same key/salt — the KDF does NOT re-run) and
-    // writes the vault to its currently open path. Called automatically by
-    // every mutating method above; exposed publicly in case a caller wants
-    // to force a flush.
+    // Re-encrypts (fresh body nonce; existing key slots carried forward
+    // unchanged — no KDF re-run) and writes the vault to its currently open
+    // path. Called automatically by every mutating method above; exposed
+    // publicly in case a caller wants to force a flush.
     void save();
 
     // Copies the currently open (already-encrypted) vault file verbatim to
@@ -133,12 +182,16 @@ public:
 private:
     void requireUnlocked() const;
     void notifyChanged();
+    void finishUnlock(const std::filesystem::path& path, RawVaultFile&& raw, crypto::SecureBuffer&& dek,
+                       const std::vector<std::uint8_t>& payload);
 
     bool unlocked_ = false;
     std::filesystem::path path_;
-    crypto::SecureBuffer key_{0};
-    std::array<std::uint8_t, crypto::kSaltBytes> salt_{};
-    crypto::KdfParams kdfParams_;
+    crypto::SecureBuffer dek_{0};
+    KeySlot passwordSlot_;
+    bool recoveryEnabled_ = false;
+    std::vector<std::string> recoveryQuestions_;
+    KeySlot recoverySlot_;
     VaultModel model_;
     std::vector<std::pair<int, ChangeCallback>> listeners_;
     int nextListenerToken_ = 1;

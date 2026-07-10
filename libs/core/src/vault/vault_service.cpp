@@ -8,7 +8,6 @@
 
 #include "lusakey/core/crypto/random.h"
 #include "lusakey/core/totp/totp.h"
-#include "lusakey/core/vault/vault_file.h"
 
 namespace lusakey::core::vault {
 
@@ -17,6 +16,32 @@ namespace {
 std::string toLower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
+}
+
+// Strips ASCII whitespace and lowercases ASCII letters so answers like
+// " Fluffy " and "fluffy" match. Note: std::tolower only affects the ASCII
+// range — non-ASCII (e.g. Cyrillic) answers are trimmed but not
+// case-folded, so "Москва" and "москва" are treated as different answers.
+// Full Unicode case folding would need an extra dependency (ICU); not worth
+// it for this feature.
+std::string normalizeAnswer(const std::string& answer) {
+    std::string result;
+    result.reserve(answer.size());
+    for (const unsigned char c : answer) {
+        if (!std::isspace(c)) {
+            result.push_back(static_cast<char>(std::tolower(c)));
+        }
+    }
+    return result;
+}
+
+std::string joinNormalizedAnswers(const std::vector<std::string>& answers) {
+    std::string joined;
+    for (const auto& a : answers) {
+        joined += normalizeAnswer(a);
+        joined.push_back('\x1F'); // unit separator; cheap delimiter, answers can't contain a control char accidentally colliding often
+    }
+    return joined;
 }
 
 } // namespace
@@ -35,6 +60,25 @@ void VaultService::notifyChanged() {
     }
 }
 
+void VaultService::finishUnlock(const std::filesystem::path& path, RawVaultFile&& raw, crypto::SecureBuffer&& dek,
+                                 const std::vector<std::uint8_t>& payload) {
+    VaultModel model;
+    try {
+        model = VaultModel::deserialize(payload);
+    } catch (const std::exception& e) {
+        throw ServiceException(ServiceError::FileCorrupt, e.what());
+    }
+
+    model_ = std::move(model);
+    path_ = path;
+    dek_ = std::move(dek);
+    passwordSlot_ = raw.header.passwordSlot;
+    recoveryEnabled_ = raw.header.recoveryEnabled;
+    recoveryQuestions_ = raw.header.recoveryQuestions;
+    recoverySlot_ = raw.header.recoverySlot;
+    unlocked_ = true;
+}
+
 void VaultService::createVault(const std::filesystem::path& path, std::string_view masterPassword,
                                 const crypto::KdfParams& kdfParams) {
     if (masterPassword.empty()) {
@@ -42,12 +86,14 @@ void VaultService::createVault(const std::filesystem::path& path, std::string_vi
     }
 
     path_ = path;
-    kdfParams_ = kdfParams;
     model_ = VaultModel{};
 
-    const auto saltBytes = crypto::randomBytes(crypto::kSaltBytes);
-    std::copy(saltBytes.begin(), saltBytes.end(), salt_.begin());
-    key_ = crypto::deriveKey(masterPassword, salt_.data(), kdfParams_);
+    dek_ = crypto::SecureBuffer(crypto::kDerivedKeyBytes);
+    crypto::randomBytes(dek_.data(), dek_.size());
+    passwordSlot_ = makeKeySlot(dek_, masterPassword, kdfParams);
+    recoveryEnabled_ = false;
+    recoveryQuestions_.clear();
+    recoverySlot_ = KeySlot{};
 
     unlocked_ = true;
     save(); // persists an empty, valid, openable vault immediately
@@ -64,56 +110,147 @@ void VaultService::unlock(const std::filesystem::path& path, std::string_view ma
         throw ServiceException(ServiceError::FileCorrupt, e.what());
     }
 
-    crypto::SecureBuffer candidateKey = crypto::deriveKey(masterPassword, raw.header.salt.data(), raw.header.kdfParams);
-
-    std::vector<std::uint8_t> payload;
+    crypto::SecureBuffer dek(0);
     try {
-        payload = decryptPayload(raw, candidateKey);
+        dek = unwrapDek(raw.header.passwordSlot, masterPassword);
     } catch (const VaultFileException&) {
         throw ServiceException(ServiceError::WrongPassword, "Incorrect master password");
     }
 
-    VaultModel model;
+    std::vector<std::uint8_t> payload;
     try {
-        model = VaultModel::deserialize(payload);
-    } catch (const std::exception& e) {
+        payload = decryptBody(raw, dek);
+    } catch (const VaultFileException& e) {
         throw ServiceException(ServiceError::FileCorrupt, e.what());
     }
 
-    model_ = std::move(model);
-    path_ = path;
-    salt_ = raw.header.salt;
-    kdfParams_ = raw.header.kdfParams;
-    key_ = std::move(candidateKey);
-    unlocked_ = true;
+    finishUnlock(path, std::move(raw), std::move(dek), payload);
+}
+
+void VaultService::unlockWithRecoveryAnswers(const std::filesystem::path& path, const std::vector<std::string>& answers) {
+    RawVaultFile raw;
+    try {
+        raw = readRaw(path);
+    } catch (const VaultFileException& e) {
+        if (e.code() == VaultFileError::NotFound) {
+            throw ServiceException(ServiceError::FileNotFound, e.what());
+        }
+        throw ServiceException(ServiceError::FileCorrupt, e.what());
+    }
+
+    if (!raw.header.recoveryEnabled) {
+        throw ServiceException(ServiceError::RecoveryNotConfigured, "This vault has no recovery method configured");
+    }
+
+    const auto joined = joinNormalizedAnswers(answers);
+    crypto::SecureBuffer dek(0);
+    try {
+        dek = unwrapDek(raw.header.recoverySlot, joined);
+    } catch (const VaultFileException&) {
+        throw ServiceException(ServiceError::WrongAnswers, "One or more answers are incorrect");
+    }
+
+    std::vector<std::uint8_t> payload;
+    try {
+        payload = decryptBody(raw, dek);
+    } catch (const VaultFileException& e) {
+        throw ServiceException(ServiceError::FileCorrupt, e.what());
+    }
+
+    finishUnlock(path, std::move(raw), std::move(dek), payload);
 }
 
 void VaultService::lock() {
     model_ = VaultModel{};
-    key_.zero();
-    key_ = crypto::SecureBuffer(0);
+    dek_.zero();
+    dek_ = crypto::SecureBuffer(0);
+    passwordSlot_ = KeySlot{};
+    recoveryEnabled_ = false;
+    recoveryQuestions_.clear();
+    recoverySlot_ = KeySlot{};
     unlocked_ = false;
 }
 
 void VaultService::changeMasterPassword(std::string_view oldPassword, std::string_view newPassword) {
     requireUnlocked();
 
-    crypto::SecureBuffer check = crypto::deriveKey(oldPassword, salt_.data(), kdfParams_);
-    // This check isn't the vault's security boundary (the AEAD tag on the
-    // file is) — the vault is already unlocked in memory. It just guards
-    // against a UI mistake by confirming the caller knows the current
-    // password before rotating it.
-    if (check.size() != key_.size() || std::memcmp(check.data(), key_.data(), check.size()) != 0) {
+    crypto::SecureBuffer recovered(0);
+    try {
+        recovered = unwrapDek(passwordSlot_, oldPassword);
+    } catch (const VaultFileException&) {
+        throw ServiceException(ServiceError::WrongPassword, "Current password is incorrect");
+    }
+    // Belt-and-suspenders: unwrapDek succeeding already proves `oldPassword`
+    // is correct for this slot, but confirm it recovered the DEK actually in
+    // use (should be true by construction — this only guards against a bug
+    // leaving passwordSlot_ out of sync with dek_).
+    if (recovered.size() != dek_.size() || std::memcmp(recovered.data(), dek_.data(), dek_.size()) != 0) {
         throw ServiceException(ServiceError::WrongPassword, "Current password is incorrect");
     }
     if (newPassword.empty()) {
         throw ServiceException(ServiceError::InvalidArgument, "New password must not be empty");
     }
 
-    const auto newSalt = crypto::randomBytes(crypto::kSaltBytes);
-    std::copy(newSalt.begin(), newSalt.end(), salt_.begin());
-    key_ = crypto::deriveKey(newPassword, salt_.data(), kdfParams_);
+    passwordSlot_ = makeKeySlot(dek_, newPassword, passwordSlot_.kdfParams);
     save();
+}
+
+void VaultService::setupRecovery(const std::vector<std::string>& questions, const std::vector<std::string>& answers,
+                                  const crypto::KdfParams& kdfParams) {
+    requireUnlocked();
+    if (questions.empty() || questions.size() != answers.size()) {
+        throw ServiceException(ServiceError::InvalidArgument,
+                                "Need at least one question, and exactly one answer per question");
+    }
+    for (const auto& q : questions) {
+        if (q.empty()) {
+            throw ServiceException(ServiceError::InvalidArgument, "Questions must not be empty");
+        }
+    }
+    for (const auto& a : answers) {
+        if (normalizeAnswer(a).empty()) {
+            throw ServiceException(ServiceError::InvalidArgument, "Answers must not be empty");
+        }
+    }
+
+    const auto joined = joinNormalizedAnswers(answers);
+    recoverySlot_ = makeKeySlot(dek_, joined, kdfParams);
+    recoveryEnabled_ = true;
+    recoveryQuestions_ = questions;
+    save();
+}
+
+void VaultService::disableRecovery() {
+    requireUnlocked();
+    recoveryEnabled_ = false;
+    recoveryQuestions_.clear();
+    recoverySlot_ = KeySlot{};
+    save();
+}
+
+bool VaultService::hasRecovery(const std::filesystem::path& path) {
+    try {
+        return readRaw(path).header.recoveryEnabled;
+    } catch (const VaultFileException&) {
+        return false;
+    }
+}
+
+std::vector<std::string> VaultService::getRecoveryQuestions(const std::filesystem::path& path) {
+    try {
+        const auto raw = readRaw(path);
+        return raw.header.recoveryEnabled ? raw.header.recoveryQuestions : std::vector<std::string>{};
+    } catch (const VaultFileException&) {
+        return {};
+    }
+}
+
+void VaultService::resetVault(const std::filesystem::path& path) {
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+    if (ec) {
+        throw ServiceException(ServiceError::IoError, "Failed to delete vault file: " + ec.message());
+    }
 }
 
 std::vector<EntrySummary> VaultService::listEntries(const EntryFilter& filter) const {
@@ -236,7 +373,7 @@ std::string VaultService::generatePassword(const util::PasswordGeneratorOptions&
 void VaultService::save() {
     requireUnlocked();
     const auto payload = model_.serialize();
-    writeWithKey(path_, key_, salt_, kdfParams_, payload);
+    writeVault(path_, dek_, passwordSlot_, recoveryEnabled_, recoveryQuestions_, recoverySlot_, payload);
 }
 
 void VaultService::exportVaultTo(const std::filesystem::path& destPath) const {

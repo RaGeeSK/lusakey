@@ -9,8 +9,9 @@ import Lusakey
 // Known gaps (see AGENTS.md): export/import aren't wired to a real file
 // picker yet (no QtQuick.Dialogs FileDialog hookup), editing an *existing*
 // entry only carries its id (no getEntry()-shaped call on AppController yet
-// to pre-fill the form), and the Authenticator Codes screen has no back
-// button / real per-entry-ticking model wired up yet.
+// to pre-fill the form), and the Authenticator Codes view (inside
+// VaultListScreen, alongside the entries list) has no real per-entry-ticking
+// model wired up yet.
 ApplicationWindow {
     id: window
     width: 1024
@@ -51,9 +52,6 @@ ApplicationWindow {
             }
             onSettingsRequested: {
                 stack.push(settingsComponent);
-            }
-            onAuthenticatorRequested: {
-                stack.push(totpViewComponent);
             }
             onSearchTextChanged: function (text) {
                 appController.setSearchText(text);
@@ -107,27 +105,6 @@ ApplicationWindow {
                 // TODO: a small dialog collecting old/new password, then
                 // appController.changeMasterPassword(oldPw, newPw).
                 console.warn("lusakey: change-master-password dialog not built yet");
-            }
-        }
-    }
-
-    Component {
-        id: totpViewComponent
-        Item {
-            AppButton {
-                text: qsTr("← Back")
-                variant: "ghost"
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.margins: Theme.space4
-                onClicked: stack.pop()
-                z: 1
-            }
-            TotpView {
-                anchors.fill: parent
-                anchors.topMargin: 56
-                // model intentionally left unset — see the known-gap note
-                // in this file's header comment and in AGENTS.md.
             }
         }
     }

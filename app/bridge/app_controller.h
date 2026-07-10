@@ -1,7 +1,9 @@
 #pragma once
 
 #include <QObject>
+#include <QSettings>
 #include <QString>
+#include <QStringList>
 
 #include <memory>
 
@@ -26,6 +28,15 @@ class AppController : public QObject {
     Q_PROPERTY(bool unlocked READ isUnlocked NOTIFY unlockedChanged)
     Q_PROPERTY(bool lastUnlockFailed READ lastUnlockFailed NOTIFY lastUnlockFailedChanged)
     Q_PROPERTY(bool vaultExists READ vaultExists NOTIFY vaultExistsChanged)
+    Q_PROPERTY(bool recoveryAvailable READ recoveryAvailable NOTIFY vaultExistsChanged)
+    Q_PROPERTY(bool recoveryEnabled READ recoveryEnabled NOTIFY recoveryEnabledChanged)
+    Q_PROPERTY(bool lastRecoveryFailed READ lastRecoveryFailed NOTIFY lastRecoveryFailedChanged)
+    Q_PROPERTY(bool autoLockEnabled READ autoLockEnabled WRITE setAutoLockEnabled NOTIFY autoLockEnabledChanged)
+    Q_PROPERTY(int autoLockMinutes READ autoLockMinutes WRITE setAutoLockMinutes NOTIFY autoLockMinutesChanged)
+    Q_PROPERTY(bool clipboardClearEnabled READ clipboardClearEnabled WRITE setClipboardClearEnabled NOTIFY
+                   clipboardClearEnabledChanged)
+    Q_PROPERTY(int clipboardClearSeconds READ clipboardClearSeconds WRITE setClipboardClearSeconds NOTIFY
+                   clipboardClearSecondsChanged)
 
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -34,15 +45,56 @@ public:
     bool isUnlocked() const;
     bool lastUnlockFailed() const { return lastUnlockFailed_; }
     bool vaultExists() const;
+    // Whether the on-disk vault at the default path has recovery questions
+    // configured — checked WITHOUT unlocking (the unlock screen needs this
+    // before the user has entered anything). False if no vault exists yet.
+    bool recoveryAvailable() const;
+    bool lastRecoveryFailed() const { return lastRecoveryFailed_; }
+    // Whether the CURRENTLY UNLOCKED vault has recovery configured (for the
+    // settings screen's "recovery: configured/not configured" indicator).
+    // False whenever locked.
+    bool recoveryEnabled() const;
+
+    // Security preferences — persisted across runs via QSettings (see
+    // AGENTS.md). Disabling either one is an explicit user choice: disabling
+    // auto-lock means the vault simply never locks itself on idle;
+    // disabling clipboard-clear means a copied password/TOTP code stays on
+    // the clipboard until overwritten by something else.
+    bool autoLockEnabled() const { return autoLockEnabled_; }
+    int autoLockMinutes() const { return autoLockMinutes_; }
+    bool clipboardClearEnabled() const { return clipboardClearEnabled_; }
+    int clipboardClearSeconds() const { return clipboardClearSeconds_; }
 
     VaultListModel* vaultListModel() const { return vaultListModel_.get(); }
 
 public slots:
+    void setAutoLockEnabled(bool enabled);
+    void setAutoLockMinutes(int minutes);
+    void setClipboardClearEnabled(bool enabled);
+    void setClipboardClearSeconds(int seconds);
+
     // Dispatches to createVault() or unlock() depending on vaultExists() —
     // the single entry point the unlock screen calls, so QML doesn't need
     // to know which case it is.
     void unlockOrCreate(const QString& masterPassword);
     void lock();
+
+    // Unlocks the default vault using answers to its configured secret
+    // questions instead of the master password. `answers` must be in the
+    // same order recoveryQuestions() returned them.
+    void unlockWithRecoveryAnswers(const QStringList& answers);
+    // Returns the (plaintext, not secret) recovery questions configured for
+    // the default vault — readable without unlocking. Empty if the vault
+    // doesn't exist or has no recovery configured.
+    QStringList recoveryQuestions() const;
+    // Configures (or replaces) the currently-unlocked vault's recovery
+    // slot. `answers[i]` corresponds to `questions[i]`; the count is
+    // entirely up to the caller (the UI lets the user add/remove rows).
+    void setupRecovery(const QStringList& questions, const QStringList& answers);
+    void disableRecovery();
+    // The "forgot password" escape hatch: permanently deletes the default
+    // vault file so a new one can be created. Irreversible.
+    void resetVault();
 
     // Restarts the auto-lock idle countdown. Called from mutating actions
     // below automatically, and from main.cpp's app-wide input event filter
@@ -82,6 +134,12 @@ signals:
     void unlockedChanged();
     void lastUnlockFailedChanged();
     void vaultExistsChanged();
+    void recoveryEnabledChanged();
+    void lastRecoveryFailedChanged();
+    void autoLockEnabledChanged();
+    void autoLockMinutesChanged();
+    void clipboardClearEnabledChanged();
+    void clipboardClearSecondsChanged();
     void unlocked();
     void locked();
     void errorOccurred(const QString& message);
@@ -90,9 +148,16 @@ private:
     lusakey::core::vault::VaultService service_;
     std::unique_ptr<VaultListModel> vaultListModel_;
     bool lastUnlockFailed_ = false;
+    bool lastRecoveryFailed_ = false;
     QString searchText_;
 
     QTimer* autoLockTimer_ = nullptr;
     QTimer* clipboardClearTimer_ = nullptr;
     QString clipboardGuardText_;
+
+    QSettings settings_;
+    bool autoLockEnabled_ = true;
+    int autoLockMinutes_ = 5;
+    bool clipboardClearEnabled_ = true;
+    int clipboardClearSeconds_ = 20;
 };

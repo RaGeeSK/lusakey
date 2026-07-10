@@ -6,3 +6,8 @@ out/
 CMakeUserPresets.json
 vcpkg_installed/
 .DS_Store
+
+# Локальный ярлык для запуска + его лончер (зашит абсолютный путь к Qt на
+# этой машине — не переносимый артефакт проекта, см. scripts/windows/).
+*.lnk
+scripts/windows/run-lusakey.cmd

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls.Basic
 import Lusakey
 
 Item {
@@ -8,8 +9,13 @@ Item {
     signal entrySelected(var entryId)
     signal addEntryRequested()
     signal settingsRequested()
-    signal authenticatorRequested()
     signal searchTextChanged(string text)
+
+    // "entries" | "totp" — switches the main pane while keeping the same
+    // sidebar visible, instead of navigating to a separate full-screen
+    // StackView page (that's still how Settings works, since it isn't one
+    // of the sidebar's own "views").
+    property string currentView: "entries"
 
     RowLayout {
         anchors.fill: parent
@@ -36,17 +42,26 @@ Item {
 
                 Item { Layout.preferredHeight: Theme.space3 }
 
-                SidebarItem { text: qsTr("All Items"); selected: true }
-                SidebarItem { text: qsTr("Authenticator Codes"); onClicked: root.authenticatorRequested() }
+                SidebarItem {
+                    text: qsTr("Все записи")
+                    selected: root.currentView === "entries"
+                    onClicked: root.currentView = "entries"
+                }
+                SidebarItem {
+                    text: qsTr("Коды авторизации")
+                    selected: root.currentView === "totp"
+                    onClicked: root.currentView = "totp"
+                }
 
                 Item { Layout.fillHeight: true }
 
-                SidebarItem { text: qsTr("Settings"); onClicked: root.settingsRequested() }
+                SidebarItem { text: qsTr("Настройки"); onClicked: root.settingsRequested() }
             }
         }
 
-        // ---- Main list ----
+        // ---- Main pane: entries list ----
         Rectangle {
+            visible: root.currentView === "entries"
             Layout.fillWidth: true
             Layout.fillHeight: true
             color: Theme.bgCanvas
@@ -63,12 +78,12 @@ Item {
                     AppTextField {
                         id: searchField
                         Layout.fillWidth: true
-                        placeholderText: qsTr("Search")
+                        placeholderText: qsTr("Поиск")
                         onTextChanged: root.searchTextChanged(text)
                     }
 
                     AppButton {
-                        text: qsTr("+ Add")
+                        text: qsTr("+ Добавить")
                         variant: "primary"
                         onClicked: root.addEntryRequested()
                     }
@@ -81,6 +96,19 @@ Item {
                     clip: true
                     model: vaultListModel
                     spacing: Theme.space1
+
+                    // Native ListView already scrolls (it's a Flickable) once
+                    // entries overflow the pane; this bar is only a visible
+                    // affordance so it's obvious there's more to scroll.
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                        background: null
+                        contentItem: Rectangle {
+                            implicitWidth: 6
+                            radius: 3
+                            color: Theme.borderDefault
+                        }
+                    }
 
                     delegate: Rectangle {
                         width: listView.width
@@ -149,13 +177,23 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         visible: listView.count === 0
-                        text: qsTr("No items yet — add your first password.")
+                        text: qsTr("Пока нет записей — добавьте первый пароль.")
                         color: Theme.textSecondary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeBody
                     }
                 }
             }
+        }
+
+        // ---- Main pane: authenticator codes ----
+        // `model` intentionally left unset — see the known-gap note in
+        // AGENTS.md: a dedicated TotpListModel (ticking every second) still
+        // needs to be written, so this renders an empty grid for now.
+        TotpView {
+            visible: root.currentView === "totp"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
         }
     }
 }

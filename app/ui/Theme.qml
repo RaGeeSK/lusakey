@@ -14,37 +14,46 @@ QtObject {
     property bool darkMode: false
 
     // ---- Light palette ----
-    readonly property color _lightBgCanvas: "#F5F2E9"
-    readonly property color _lightBgBase: "#F7F4EC"
-    readonly property color _lightSurface: "#FDFBF6"
+    // Anchor colors verified against real claude.ai extractions (not
+    // invented): background "Pampas" #F4F3EE, neutral grey "Cloudy"
+    // #B1ADA1, accent "Crail" #C15F3C — see AGENTS.md for sources. Other
+    // steps (borders, hover/pressed states, disabled) are this project's own
+    // interpolation between those anchors, not independently verified.
+    readonly property color _lightBgCanvas: "#F4F3EE"   // Pampas — verified
+    readonly property color _lightBgBase: "#E7E4DA"     // sidebar — leans toward Cloudy for a visibly grey panel
+    readonly property color _lightSurface: "#FDFCFA"
     readonly property color _lightSurfaceRaised: "#FFFFFF"
-    readonly property color _lightBorderSubtle: "#E5E0D5"
-    readonly property color _lightBorderDefault: "#DDD6C7"
+    readonly property color _lightBorderSubtle: "#E3E0D6"
+    readonly property color _lightBorderDefault: "#D6D2C5"
     readonly property color _lightTextPrimary: "#2B2823"
-    readonly property color _lightTextSecondary: "#6F6B60"
-    readonly property color _lightTextDisabled: "#A39E90"
-    readonly property color _lightAccent: "#DA7756"
-    readonly property color _lightAccentHover: "#C86A48"
-    readonly property color _lightAccentPressed: "#A8532E"
-    readonly property color _lightAccentSubtle: "#1FDA7756"
+    readonly property color _lightTextSecondary: "#847F72" // darkened Cloudy — Cloudy itself is too light for AA text contrast on Pampas
+    readonly property color _lightTextDisabled: "#B3AEA1" // Cloudy — verified
+    readonly property color _lightAccent: "#C15F3C"       // Crail — verified
+    readonly property color _lightAccentHover: "#AA502F"
+    readonly property color _lightAccentPressed: "#8F4026"
+    readonly property color _lightAccentSubtle: "#1FC15F3C"
     readonly property color _lightSuccess: "#3F7B5C"
     readonly property color _lightWarning: "#C68A2E"
     readonly property color _lightDanger: "#C1392B"
 
     // ---- Dark palette ----
+    // Not independently verified (search sources only described real
+    // Claude's dark mode qualitatively as "deep charcoal with soft linen
+    // text") — kept in the same warm-neutral family as the light palette,
+    // with the accent lightened for legibility on a dark background.
     readonly property color _darkBgCanvas: "#1F1B16"
-    readonly property color _darkBgBase: "#221D17"
-    readonly property color _darkSurface: "#2F2820"
-    readonly property color _darkSurfaceRaised: "#3A3128"
-    readonly property color _darkBorderSubtle: "#453B2F"
-    readonly property color _darkBorderDefault: "#52473A"
+    readonly property color _darkBgBase: "#24201A"
+    readonly property color _darkSurface: "#2C2720"
+    readonly property color _darkSurfaceRaised: "#342E26"
+    readonly property color _darkBorderSubtle: "#3D362C"
+    readonly property color _darkBorderDefault: "#4A4235"
     readonly property color _darkTextPrimary: "#EDE9E0"
     readonly property color _darkTextSecondary: "#B0A99B"
     readonly property color _darkTextDisabled: "#766F60"
-    readonly property color _darkAccent: "#E08663"
-    readonly property color _darkAccentHover: "#E89876"
-    readonly property color _darkAccentPressed: "#C96B49"
-    readonly property color _darkAccentSubtle: "#29E08663"
+    readonly property color _darkAccent: "#D9744F"
+    readonly property color _darkAccentHover: "#E28A67"
+    readonly property color _darkAccentPressed: "#C05F3C"
+    readonly property color _darkAccentSubtle: "#29D9744F"
     readonly property color _darkSuccess: "#6FAE85"
     readonly property color _darkWarning: "#E0A94E"
     readonly property color _darkDanger: "#E2685A"

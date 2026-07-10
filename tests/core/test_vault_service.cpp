@@ -222,3 +222,126 @@ TEST_CASE("VaultService exportVaultTo copies an openable vault file", "[vault_se
     std::filesystem::remove(path);
     std::filesystem::remove(exportPath);
 }
+
+TEST_CASE("VaultService changeMasterPassword rotates the password slot without losing data", "[vault_service]") {
+    const auto path = tempVaultPath("lusakey_svc_changepw.lusakey");
+    std::filesystem::remove(path);
+
+    VaultService service;
+    service.createVault(path, "old password", testKdf());
+    EntryDraft draft;
+    draft.title = "Survives Rotation";
+    service.addEntry(draft);
+
+    REQUIRE_THROWS_AS(service.changeMasterPassword("wrong old password", "new password"), ServiceException);
+
+    service.changeMasterPassword("old password", "new password");
+    service.lock();
+
+    {
+        VaultService oldPasswordAttempt;
+        REQUIRE_THROWS_AS(oldPasswordAttempt.unlock(path, "old password"), ServiceException);
+    }
+
+    VaultService reopened;
+    reopened.unlock(path, "new password");
+    const auto entries = reopened.listEntries();
+    REQUIRE(entries.size() == 1);
+    REQUIRE(entries[0].title == "Survives Rotation");
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("VaultService setupRecovery lets a vault be unlocked via secret-question answers", "[vault_service]") {
+    const auto path = tempVaultPath("lusakey_svc_recovery.lusakey");
+    std::filesystem::remove(path);
+
+    REQUIRE_FALSE(VaultService::hasRecovery(path)); // file doesn't exist yet -> false, not a throw
+
+    {
+        VaultService service;
+        service.createVault(path, "master password", testKdf());
+        REQUIRE_FALSE(service.recoveryEnabled());
+
+        EntryDraft draft;
+        draft.title = "Recoverable Entry";
+        service.addEntry(draft);
+
+        service.setupRecovery({"Pet's name?", "Favorite color?"}, {" Fluffy ", "BLUE"}, testKdf());
+        REQUIRE(service.recoveryEnabled());
+        REQUIRE(service.recoveryQuestions().size() == 2);
+
+        service.lock();
+    }
+
+    REQUIRE(VaultService::hasRecovery(path));
+    const auto questions = VaultService::getRecoveryQuestions(path);
+    REQUIRE(questions.size() == 2);
+    REQUIRE(questions[0] == "Pet's name?");
+    REQUIRE(questions[1] == "Favorite color?");
+
+    // Wrong answers fail.
+    {
+        VaultService service;
+        REQUIRE_THROWS_AS(service.unlockWithRecoveryAnswers(path, {"wrong", "wrong"}), ServiceException);
+    }
+
+    // Correct answers succeed, case/whitespace-insensitively, and recover the same data.
+    {
+        VaultService service;
+        service.unlockWithRecoveryAnswers(path, {"fluffy", "blue"}); // different case/whitespace than when set up
+        const auto entries = service.listEntries();
+        REQUIRE(entries.size() == 1);
+        REQUIRE(entries[0].title == "Recoverable Entry");
+
+        // The password slot must still work too — recovery doesn't replace it.
+        service.lock();
+        service.unlock(path, "master password");
+        REQUIRE(service.listEntries().size() == 1);
+    }
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("VaultService unlockWithRecoveryAnswers throws RecoveryNotConfigured when none is set up", "[vault_service]") {
+    const auto path = tempVaultPath("lusakey_svc_norecovery.lusakey");
+    std::filesystem::remove(path);
+
+    {
+        VaultService service;
+        service.createVault(path, "master password", testKdf());
+    }
+
+    VaultService service;
+    bool threw = false;
+    try {
+        service.unlockWithRecoveryAnswers(path, {"anything"});
+    } catch (const ServiceException& e) {
+        threw = true;
+        REQUIRE(e.code() == ServiceError::RecoveryNotConfigured);
+    }
+    REQUIRE(threw);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("VaultService::resetVault deletes the vault file so a new one can be created", "[vault_service]") {
+    const auto path = tempVaultPath("lusakey_svc_reset.lusakey");
+    std::filesystem::remove(path);
+
+    {
+        VaultService service;
+        service.createVault(path, "master password", testKdf());
+    }
+    REQUIRE(std::filesystem::exists(path));
+
+    VaultService::resetVault(path);
+    REQUIRE_FALSE(std::filesystem::exists(path));
+
+    // A brand-new vault can be created at the same path afterward.
+    VaultService service;
+    service.createVault(path, "a different password", testKdf());
+    REQUIRE(service.isUnlocked());
+
+    std::filesystem::remove(path);
+}

@@ -1,3 +1,5 @@
+#include <QCoreApplication>
+#include <QDir>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -18,22 +20,27 @@
 
 namespace {
 
-// Fonts are loaded from a plain filesystem path next to the executable,
-// NOT embedded via the Qt resource system — see resources/fonts/README.md:
-// the actual .ttf files (Inter, JetBrains Mono; both OFL) must be downloaded
-// separately and placed there, since this project's tooling can't embed
-// binary font files. A missing file just skips with a warning
-// (QFontDatabase::addApplicationFont returns -1) rather than failing.
+// Fonts are loaded from a plain filesystem path next to the executable
+// (resolved from applicationDirPath(), NOT the current working directory —
+// a bare relative path would break depending on how the exe is launched,
+// e.g. a desktop shortcut with a different working directory), NOT embedded
+// via the Qt resource system — see resources/fonts/README.md and
+// app/CMakeLists.txt's post-build copy step for how the files get there.
+// The actual .ttf files (Inter, JetBrains Mono; both OFL). A missing file
+// just skips with a warning (QFontDatabase::addApplicationFont returns -1)
+// rather than failing.
 void loadBundledFonts() {
-    const QStringList candidates = {
-        QStringLiteral("fonts/Inter-Regular.ttf"),
-        QStringLiteral("fonts/Inter-Medium.ttf"),
-        QStringLiteral("fonts/Inter-SemiBold.ttf"),
-        QStringLiteral("fonts/Inter-Bold.ttf"),
-        QStringLiteral("fonts/JetBrainsMono-Regular.ttf"),
-        QStringLiteral("fonts/JetBrainsMono-Medium.ttf"),
+    const QDir fontsDir(QCoreApplication::applicationDirPath() + QStringLiteral("/fonts"));
+    const QStringList fileNames = {
+        QStringLiteral("Inter-Regular.ttf"),
+        QStringLiteral("Inter-Medium.ttf"),
+        QStringLiteral("Inter-SemiBold.ttf"),
+        QStringLiteral("Inter-Bold.ttf"),
+        QStringLiteral("JetBrainsMono-Regular.ttf"),
+        QStringLiteral("JetBrainsMono-Medium.ttf"),
     };
-    for (const auto& path : candidates) {
+    for (const auto& fileName : fileNames) {
+        const auto path = fontsDir.filePath(fileName);
         if (QFontDatabase::addApplicationFont(path) < 0) {
             qWarning() << "lusakey: could not load bundled font (see resources/fonts/README.md):" << path;
         }

@@ -6,7 +6,7 @@ import Lusakey
 Dialog {
     id: root
 
-    title: qsTr("Generate Password")
+    title: qsTr("Генератор паролей")
     modal: true
     standardButtons: Dialog.NoButton
     anchors.centerIn: parent
@@ -23,6 +23,12 @@ Dialog {
     signal regenerateRequested()
     signal useRequested(string password)
 
+    // Fixed width set directly on the Dialog, not via contentItem's
+    // implicitWidth — see RecoverySetupDialog.qml for why (confirmed
+    // binding-loop bug when a Layout-typed contentItem's implicitWidth is
+    // assigned directly).
+    width: 360
+
     background: Rectangle {
         radius: Theme.radiusXl
         color: Theme.surfaceRaised
@@ -31,7 +37,6 @@ Dialog {
     }
 
     contentItem: ColumnLayout {
-        implicitWidth: 360
         spacing: Theme.space4
 
         Text {
@@ -53,12 +58,12 @@ Dialog {
             spacing: Theme.space3
 
             Text {
-                text: qsTr("Length: %1").arg(root.length)
+                text: qsTr("Длина: %1").arg(root.length)
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeCaption
             }
-            Slider {
+            AppSlider {
                 Layout.fillWidth: true
                 from: 8
                 to: 64
@@ -73,30 +78,30 @@ Dialog {
             Layout.fillWidth: true
             columnSpacing: Theme.space3
 
-            CheckBox {
-                text: qsTr("Uppercase")
+            AppCheckBox {
+                text: qsTr("Заглавные буквы")
                 checked: root.includeUppercase
                 onToggled: root.includeUppercase = checked
             }
-            CheckBox {
-                text: qsTr("Lowercase")
+            AppCheckBox {
+                text: qsTr("Строчные буквы")
                 checked: root.includeLowercase
                 onToggled: root.includeLowercase = checked
             }
-            CheckBox {
-                text: qsTr("Digits")
+            AppCheckBox {
+                text: qsTr("Цифры")
                 checked: root.includeDigits
                 onToggled: root.includeDigits = checked
             }
-            CheckBox {
-                text: qsTr("Symbols")
+            AppCheckBox {
+                text: qsTr("Символы")
                 checked: root.includeSymbols
                 onToggled: root.includeSymbols = checked
             }
         }
 
-        CheckBox {
-            text: qsTr("Exclude ambiguous characters (0/O, 1/l/I, ...)")
+        AppCheckBox {
+            text: qsTr("Исключить похожие символы (0/O, 1/l/I, …)")
             checked: root.excludeAmbiguous
             onToggled: root.excludeAmbiguous = checked
         }
@@ -105,11 +110,11 @@ Dialog {
             Layout.fillWidth: true
             spacing: Theme.space2
 
-            AppButton { text: qsTr("Regenerate"); variant: "secondary"; onClicked: root.regenerateRequested() }
+            AppButton { text: qsTr("Обновить"); variant: "secondary"; onClicked: root.regenerateRequested() }
             Item { Layout.fillWidth: true }
-            AppButton { text: qsTr("Cancel"); variant: "ghost"; onClicked: root.close() }
+            AppButton { text: qsTr("Отмена"); variant: "ghost"; onClicked: root.close() }
             AppButton {
-                text: qsTr("Use this password")
+                text: qsTr("Использовать этот пароль")
                 variant: "primary"
                 onClicked: root.useRequested(root.generatedPassword)
             }

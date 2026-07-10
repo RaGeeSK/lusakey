@@ -65,7 +65,7 @@ Item {
 
                     AppButton {
                         Layout.fillWidth: true
-                        text: qsTr("Copy")
+                        text: qsTr("Копировать")
                         variant: "secondary"
                         onClicked: root.codeCopyRequested(model.entryId)
                     }
@@ -76,7 +76,7 @@ Item {
         Text {
             anchors.centerIn: parent
             visible: gridView.count === 0
-            text: qsTr("No authenticator codes yet — add a TOTP secret to an entry.")
+            text: qsTr("Пока нет кодов авторизации — добавьте TOTP-секрет к записи.")
             color: Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeBody
