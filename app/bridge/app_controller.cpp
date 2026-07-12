@@ -65,6 +65,15 @@ bool AppController::isUnlocked() const {
 }
 
 QString AppController::defaultVaultPath() const {
+    // Dev/test aid: redirects the vault to an isolated throwaway directory
+    // instead of the real profile path, so UI changes can be visually
+    // verified (screenshots, scripted clicks) without ever touching a
+    // real vault. No-op unless explicitly set — see AGENTS.md.
+    const auto override = qEnvironmentVariable("LUSAKEY_TEST_VAULT_DIR");
+    if (!override.isEmpty()) {
+        QDir().mkpath(override);
+        return override + QStringLiteral("/vault.lusakey");
+    }
     const auto dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
     return dir + QStringLiteral("/vault.lusakey");
@@ -72,6 +81,14 @@ QString AppController::defaultVaultPath() const {
 
 bool AppController::vaultExists() const {
     return QFileInfo::exists(defaultVaultPath());
+}
+
+bool AppController::showWelcome() const {
+    return !settings_.value(QStringLiteral("ui/welcomeShown"), false).toBool();
+}
+
+void AppController::dismissWelcome() {
+    settings_.setValue(QStringLiteral("ui/welcomeShown"), true);
 }
 
 bool AppController::recoveryAvailable() const {

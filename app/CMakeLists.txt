@@ -48,6 +48,7 @@ qt_add_qml_module(lusakey
         ui/components/KeyIcon.qml
         ui/components/ShieldIcon.qml
         ui/components/GearIcon.qml
+        ui/screens/WelcomeScreen.qml
         ui/screens/UnlockScreen.qml
         ui/screens/VaultListScreen.qml
         ui/screens/EntryDetailPanel.qml

@@ -27,9 +27,17 @@ ApplicationWindow {
         // read once here (not bound) since the card's height changes with
         // UnlockScreen's `mode` (recovery/delete flows), and the window
         // should keep this floor even after unlocking into other screens.
-        if (stack.currentItem) {
-            window.minimumWidth = stack.currentItem.cardWidth + Theme.space7 * 2;
-            window.minimumHeight = stack.currentItem.cardHeight + Theme.space7 * 2;
+        // Read from stack.get(0) (always the unlock screen), not
+        // stack.currentItem — the latter is WelcomeScreen right after this
+        // if showWelcome is true, which has no cardWidth/cardHeight.
+        const unlockItem = stack.get(0);
+        if (unlockItem) {
+            window.minimumWidth = unlockItem.cardWidth + Theme.space7 * 2;
+            window.minimumHeight = unlockItem.cardHeight + Theme.space7 * 2;
+        }
+
+        if (appController.showWelcome) {
+            stack.push(welcomeComponent);
         }
 
         window.requestActivate();
@@ -65,6 +73,19 @@ ApplicationWindow {
             vaultExists: appController.vaultExists
             onUnlockRequested: function (password) {
                 appController.unlockOrCreate(password);
+            }
+        }
+    }
+
+    Component {
+        id: welcomeComponent
+        WelcomeScreen {
+            onFinished: {
+                appController.dismissWelcome();
+                stack.pop();
+                if (stack.currentItem && stack.currentItem.focusPasswordField) {
+                    stack.currentItem.focusPasswordField();
+                }
             }
         }
     }

@@ -105,9 +105,14 @@ Item {
 
                     // Native ListView already scrolls (it's a Flickable) once
                     // entries overflow the pane; this bar is only a visible
-                    // affordance so it's obvious there's more to scroll.
+                    // affordance so it's obvious there's more to scroll. Explicit
+                    // `visible` because `policy: AsNeeded` alone still renders a
+                    // full-height bar when the list is empty (contentHeight 0
+                    // makes the size/position calculation degenerate instead of
+                    // hiding it).
                     ScrollBar.vertical: ScrollBar {
                         policy: ScrollBar.AsNeeded
+                        visible: listView.contentHeight > listView.height
                         background: null
                         contentItem: Rectangle {
                             implicitWidth: 6

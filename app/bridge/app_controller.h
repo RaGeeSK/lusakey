@@ -40,6 +40,7 @@ class AppController : public QObject {
                    clipboardClearEnabledChanged)
     Q_PROPERTY(int clipboardClearSeconds READ clipboardClearSeconds WRITE setClipboardClearSeconds NOTIFY
                    clipboardClearSecondsChanged)
+    Q_PROPERTY(bool showWelcome READ showWelcome CONSTANT)
 
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -66,6 +67,11 @@ public:
     bool autoLockEnabled() const { return autoLockEnabled_; }
     int autoLockMinutes() const { return autoLockMinutes_; }
     bool clipboardClearEnabled() const { return clipboardClearEnabled_; }
+    // Whether the first-launch onboarding (WelcomeScreen.qml) should be
+    // shown — true until dismissWelcome() is called once, ever, persisted
+    // via QSettings. Q_PROPERTY is CONSTANT: read once at startup by
+    // Main.qml, not meant to change reactively mid-session.
+    bool showWelcome() const;
     int clipboardClearSeconds() const { return clipboardClearSeconds_; }
 
     VaultListModel* vaultListModel() const { return vaultListModel_.get(); }
@@ -76,6 +82,9 @@ public slots:
     void setAutoLockMinutes(int minutes);
     void setClipboardClearEnabled(bool enabled);
     void setClipboardClearSeconds(int seconds);
+    // Persists that the onboarding has been seen, so showWelcome() returns
+    // false on every future launch. Idempotent.
+    void dismissWelcome();
 
     // Dispatches to createVault() or unlock() depending on vaultExists() —
     // the single entry point the unlock screen calls, so QML doesn't need
