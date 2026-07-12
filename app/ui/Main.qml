@@ -22,6 +22,34 @@ ApplicationWindow {
 
     Component.onCompleted: {
         Theme.darkMode = Qt.styleHints.colorScheme === Qt.Dark;
+
+        // Never let the window shrink below the unlock screen's own card —
+        // read once here (not bound) since the card's height changes with
+        // UnlockScreen's `mode` (recovery/delete flows), and the window
+        // should keep this floor even after unlocking into other screens.
+        if (stack.currentItem) {
+            window.minimumWidth = stack.currentItem.cardWidth + Theme.space7 * 2;
+            window.minimumHeight = stack.currentItem.cardHeight + Theme.space7 * 2;
+        }
+
+        window.requestActivate();
+        startupFocusTimer.start();
+    }
+
+    // Grabbing focus for the password field right in Component.onCompleted
+    // doesn't reliably stick — the platform window itself often hasn't
+    // finished becoming the OS-active/foreground window yet at that point,
+    // so the keystrokes go nowhere until the user clicks the field once.
+    // A short deferred retry (after requestActivate()) fixes it in practice.
+    Timer {
+        id: startupFocusTimer
+        interval: 50
+        onTriggered: {
+            window.requestActivate();
+            if (stack.currentItem && stack.currentItem.focusPasswordField) {
+                stack.currentItem.focusPasswordField();
+            }
+        }
     }
 
     StackView {
@@ -45,7 +73,16 @@ ApplicationWindow {
         id: vaultListComponent
         VaultListScreen {
             onEntrySelected: function (entryId) {
-                stack.push(entryDetailComponent, {entryId: entryId});
+                const entry = appController.getEntry(entryId);
+                stack.push(entryDetailComponent, {
+                    entryId: entryId,
+                    entryTitle: entry.title || "",
+                    username: entry.username || "",
+                    password: entry.password || "",
+                    url: entry.url || "",
+                    notes: entry.notes || "",
+                    hasTotp: entry.hasTotp || false
+                });
             }
             onAddEntryRequested: {
                 stack.push(entryDetailComponent, {entryId: null});
@@ -82,6 +119,17 @@ ApplicationWindow {
                 stack.pop();
             }
             onCloseRequested: stack.pop()
+            onLinkTotpRequested: function (otpauthUri) {
+                if (entryId !== null && appController.setEntryTotp(entryId, otpauthUri)) {
+                    hasTotp = true;
+                }
+            }
+            onUnlinkTotpRequested: {
+                if (entryId !== null) {
+                    appController.removeEntryTotp(entryId);
+                    hasTotp = false;
+                }
+            }
             onCopyPasswordRequested: function (password) {
                 appController.copyToClipboard(password);
             }

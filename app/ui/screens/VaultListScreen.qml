@@ -44,18 +44,24 @@ Item {
 
                 SidebarItem {
                     text: qsTr("Все записи")
+                    icon: keyIconComponent
                     selected: root.currentView === "entries"
                     onClicked: root.currentView = "entries"
                 }
                 SidebarItem {
                     text: qsTr("Коды авторизации")
+                    icon: shieldIconComponent
                     selected: root.currentView === "totp"
                     onClicked: root.currentView = "totp"
                 }
 
                 Item { Layout.fillHeight: true }
 
-                SidebarItem { text: qsTr("Настройки"); onClicked: root.settingsRequested() }
+                SidebarItem {
+                    text: qsTr("Настройки")
+                    icon: gearIconComponent
+                    onClicked: root.settingsRequested()
+                }
             }
         }
 
@@ -110,8 +116,12 @@ Item {
                         }
                     }
 
+                    // Narrower than listView.width (not just the ListView
+                    // itself margined) — the scrollbar overlays listView's
+                    // own right edge, so the row content needs its OWN
+                    // reserved gutter to actually look separated from it.
                     delegate: Rectangle {
-                        width: listView.width
+                        width: listView.width - Theme.space3
                         height: 56
                         radius: Theme.radiusMd
                         color: mouseArea.containsMouse ? Theme.accentSubtle : "transparent"
@@ -187,13 +197,31 @@ Item {
         }
 
         // ---- Main pane: authenticator codes ----
-        // `model` intentionally left unset — see the known-gap note in
-        // AGENTS.md: a dedicated TotpListModel (ticking every second) still
-        // needs to be written, so this renders an empty grid for now.
         TotpView {
             visible: root.currentView === "totp"
             Layout.fillWidth: true
             Layout.fillHeight: true
+            model: totpListModel
+            onCodeCopyRequested: function (entryId) {
+                appController.copyToClipboard(appController.currentTotpCode(entryId));
+            }
+            onAddRequested: linkTotpDialog.open()
         }
     }
+
+    LinkTotpDialog {
+        id: linkTotpDialog
+        onLinkRequested: function (entryId, otpauthUri) {
+            const ok = entryId !== null
+                ? appController.setEntryTotp(entryId, otpauthUri)
+                : appController.addTotpEntry(otpauthUri);
+            if (ok) {
+                close();
+            }
+        }
+    }
+
+    Component { id: keyIconComponent; KeyIcon {} }
+    Component { id: shieldIconComponent; ShieldIcon {} }
+    Component { id: gearIconComponent; GearIcon {} }
 }

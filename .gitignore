@@ -11,3 +11,8 @@ vcpkg_installed/
 # этой машине — не переносимый артефакт проекта, см. scripts/windows/).
 *.lnk
 scripts/windows/run-lusakey.cmd
+
+# Собранные релизные артефакты (инсталлятор + портативный zip) — большие
+# бинарники, генерируются scripts/windows/build-release.ps1, публикуются
+# в GitHub Releases, а не хранятся в самом репозитории.
+/release/

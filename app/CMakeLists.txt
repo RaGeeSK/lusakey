@@ -12,6 +12,8 @@ qt_add_executable(lusakey
     bridge/app_controller.cpp
     bridge/vault_list_model.h
     bridge/vault_list_model.cpp
+    bridge/totp_list_model.h
+    bridge/totp_list_model.cpp
     bridge/activity_event_filter.h
     bridge/activity_event_filter.cpp
 )
@@ -43,6 +45,9 @@ qt_add_qml_module(lusakey
         ui/components/WarningIcon.qml
         ui/components/CloseIcon.qml
         ui/components/CheckIcon.qml
+        ui/components/KeyIcon.qml
+        ui/components/ShieldIcon.qml
+        ui/components/GearIcon.qml
         ui/screens/UnlockScreen.qml
         ui/screens/VaultListScreen.qml
         ui/screens/EntryDetailPanel.qml
@@ -50,6 +55,7 @@ qt_add_qml_module(lusakey
         ui/screens/GeneratorDialog.qml
         ui/screens/SettingsScreen.qml
         ui/screens/RecoverySetupDialog.qml
+        ui/screens/LinkTotpDialog.qml
 )
 
 target_link_libraries(lusakey PRIVATE

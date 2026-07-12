@@ -18,10 +18,31 @@ Rectangle {
     property bool vaultExists: true
     property bool recoveryAvailable: appController.recoveryAvailable
 
+    // Exposed so Main.qml can size the window's minimum bounds to this
+    // screen's natural (unlock-mode) size on startup — read once, not bound,
+    // since `card`'s height changes with `mode` (recovery/delete flows) and
+    // we only want the primary unlock card's size as the floor.
+    readonly property alias cardWidth: card.width
+    readonly property alias cardHeight: card.height
+
     // "unlock" | "forgotMenu" | "recoveryAnswer" | "confirmDelete"
     property string mode: "unlock"
     property var answerFields: []
     property bool recoveryFailed: false
+
+    // Re-grab keyboard focus for the password field when coming back to
+    // this mode (e.g. clicking "Назад" out of the forgot-password flow).
+    // The very first grab (on app launch) is driven by Main.qml instead —
+    // see focusPasswordField() below — since forceActiveFocus() called this
+    // early doesn't reliably stick until the platform window itself has
+    // actually been activated by the OS.
+    onModeChanged: if (mode === "unlock") passwordField.forceActiveFocus()
+
+    function focusPasswordField() {
+        if (mode === "unlock") {
+            passwordField.forceActiveFocus();
+        }
+    }
 
     signal unlockRequested(string password)
 

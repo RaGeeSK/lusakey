@@ -78,13 +78,39 @@ Dialog {
         border.color: Theme.borderSubtle
     }
 
+    // QQC2's default Dialog header ignores Theme entirely (plain white
+    // background, black text) — replace it so the title bar matches the
+    // rest of the app instead of looking like a native/unstyled popup.
+    header: Rectangle {
+        color: Theme.surfaceRaised
+        implicitHeight: headerLabel.implicitHeight + Theme.space4 * 2
+        topLeftRadius: Theme.radiusXl
+        topRightRadius: Theme.radiusXl
+
+        Text {
+            id: headerLabel
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: Theme.space5
+            anchors.rightMargin: Theme.space5
+            text: root.title
+            color: Theme.textPrimary
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeH3
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
+        }
+    }
+
     contentItem: ScrollView {
         id: dialogScroll
         clip: true
         contentWidth: availableWidth
 
         ColumnLayout {
-            width: dialogScroll.availableWidth
+            x: Theme.space3
+            width: dialogScroll.availableWidth - Theme.space3 * 2
             spacing: Theme.space4
 
         Text {

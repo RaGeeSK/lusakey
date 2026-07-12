@@ -32,7 +32,11 @@ Item {
             // resolves "parent" for an anchor.
             x: Math.max(0, (scrollView.availableWidth - width) / 2)
             y: Theme.space6
-            width: Math.min(480, scrollView.availableWidth)
+            // The `- Theme.space3` keeps a small gap from the scrollbar even
+            // when the window is too narrow for the 480px cap to apply (the
+            // Math.min() would otherwise make this exactly availableWidth,
+            // flush against the scrollbar with zero breathing room).
+            width: Math.min(480, scrollView.availableWidth - Theme.space3)
             spacing: Theme.space5
 
             RowLayout {

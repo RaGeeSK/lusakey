@@ -10,6 +10,9 @@ Rectangle {
 
     property string text: ""
     property bool selected: false
+    // Component producing one of the Canvas-based icons (KeyIcon,
+    // ShieldIcon, GearIcon, ...) — null means no icon, just text.
+    property Component icon: null
     signal clicked()
 
     Layout.fillWidth: true
@@ -18,15 +21,33 @@ Rectangle {
     color: root.selected ? Theme.accentSubtle : (mouseArea.containsMouse ? Theme.borderSubtle : "transparent")
     Behavior on color { ColorAnimation { duration: 120 } }
 
-    Text {
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: parent.left
+    RowLayout {
+        anchors.fill: parent
         anchors.leftMargin: Theme.space3
-        text: root.text
-        color: root.selected ? Theme.accent : Theme.textPrimary
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeBody
-        font.weight: root.selected ? Font.DemiBold : Font.Normal
+        anchors.rightMargin: Theme.space3
+        spacing: Theme.space2
+
+        Loader {
+            id: iconLoader
+            active: root.icon !== null
+            sourceComponent: root.icon
+            Layout.alignment: Qt.AlignVCenter
+        }
+        Binding {
+            target: iconLoader.item
+            property: "strokeColor"
+            value: root.selected ? Theme.accent : Theme.textSecondary
+            when: iconLoader.item !== null
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: root.text
+            color: root.selected ? Theme.accent : Theme.textPrimary
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeBody
+            font.weight: root.selected ? Font.DemiBold : Font.Normal
+        }
     }
 
     MouseArea {

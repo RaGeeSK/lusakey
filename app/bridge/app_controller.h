@@ -4,10 +4,13 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QVariantMap>
 
 #include <memory>
+#include <string>
 
 #include "lusakey/core/vault/vault_service.h"
+#include "totp_list_model.h"
 
 class VaultListModel;
 class QTimer;
@@ -66,6 +69,7 @@ public:
     int clipboardClearSeconds() const { return clipboardClearSeconds_; }
 
     VaultListModel* vaultListModel() const { return vaultListModel_.get(); }
+    TotpListModel* totpListModel() const { return totpListModel_.get(); }
 
 public slots:
     void setAutoLockEnabled(bool enabled);
@@ -109,6 +113,25 @@ public slots:
     void updateEntry(qulonglong entryId, const QString& title, const QString& username, const QString& password,
                       const QString& url, const QString& notes);
     void removeEntry(qulonglong entryId);
+    // Full entry fields for pre-filling the detail panel when opening an
+    // EXISTING entry (keys: title/username/password/url/notes/hasTotp).
+    // Empty map if entryId doesn't exist or the vault is locked.
+    QVariantMap getEntry(qulonglong entryId);
+
+    // Links entryId to a TOTP secret parsed from an otpauth://totp/... URI
+    // (the format QR codes decode to — paste-in, no image import here; see
+    // libs/qr for that, not yet wired to this method). Returns false (and
+    // emits errorOccurred with the reason) if the URI is malformed or
+    // entryId doesn't exist; the entry is left untouched either way.
+    bool setEntryTotp(qulonglong entryId, const QString& otpauthUri);
+    // Removes entryId's TOTP secret, if any. No-op if it has none.
+    void removeEntryTotp(qulonglong entryId);
+    // Creates a brand-new entry from an otpauth://totp/... URI alone (title
+    // taken from the URI's issuer, falling back to its label) — the "add a
+    // code without picking an existing entry first" path from
+    // LinkTotpDialog. Returns false (and emits errorOccurred) if the URI is
+    // malformed.
+    bool addTotpEntry(const QString& otpauthUri);
 
     QString currentTotpCode(qulonglong entryId);
     int currentTotpSecondsRemaining(qulonglong entryId);
@@ -128,6 +151,13 @@ private:
     void createVault(const QString& masterPassword);
     void unlock(const QString& masterPassword);
     void refreshVaultList();
+    // Rebuilds the full set of TOTP-enabled entries (call alongside
+    // refreshVaultList() wherever entries are added/removed/updated/
+    // unlocked/locked). tickTotpList(), by contrast, only refreshes the
+    // current code/countdown for that same set every second.
+    void refreshTotpList();
+    void tickTotpList();
+    TotpListModel::Row buildTotpRow(lusakey::core::vault::EntryId id, const std::string& title) const;
     QString defaultVaultPath() const;
 
 signals:
@@ -147,6 +177,7 @@ signals:
 private:
     lusakey::core::vault::VaultService service_;
     std::unique_ptr<VaultListModel> vaultListModel_;
+    std::unique_ptr<TotpListModel> totpListModel_;
     bool lastUnlockFailed_ = false;
     bool lastRecoveryFailed_ = false;
     QString searchText_;
@@ -154,6 +185,7 @@ private:
     QTimer* autoLockTimer_ = nullptr;
     QTimer* clipboardClearTimer_ = nullptr;
     QString clipboardGuardText_;
+    QTimer* totpTickTimer_ = nullptr;
 
     QSettings settings_;
     bool autoLockEnabled_ = true;

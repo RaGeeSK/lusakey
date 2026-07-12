@@ -15,12 +15,26 @@ Item {
     property bool hasTotp: false
     property string totpCode: ""
     property int totpSecondsRemaining: 30
+    property string totpLinkError: ""
 
     signal copyPasswordRequested(string password) // carries the field's *current* text, not the (stale) root.password
     signal copyTotpRequested()
     signal saveRequested(string title, string username, string password, string url, string notes)
     signal deleteRequested()
     signal closeRequested()
+    signal linkTotpRequested(string otpauthUri)
+    signal unlinkTotpRequested()
+
+    // Surfaces the reason setEntryTotp() failed (malformed URI, etc) right
+    // next to the field that caused it — harmless if some unrelated action
+    // also emits this signal while the panel happens to be open, since it's
+    // just advisory text that's overwritten the next time this fires.
+    Connections {
+        target: appController
+        function onErrorOccurred(message) {
+            root.totpLinkError = message;
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -133,6 +147,54 @@ Item {
                         variant: "secondary"
                         onClicked: root.copyTotpRequested()
                     }
+                    AppButton {
+                        text: qsTr("Отвязать")
+                        variant: "ghost"
+                        onClicked: root.unlinkTotpRequested()
+                    }
+                }
+            }
+
+            // ---- Link a TOTP secret to this (already-saved) entry ----
+            // Only offered once the entry exists (entryId !== null) — a
+            // brand-new unsaved entry has no id yet to attach a secret to.
+            ColumnLayout {
+                visible: !root.hasTotp && root.entryId !== null
+                Layout.fillWidth: true
+                spacing: Theme.space2
+
+                Text {
+                    text: qsTr("Код авторизации (TOTP)")
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeCaption
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.space2
+
+                    AppTextField {
+                        id: totpUriField
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("otpauth://totp/...")
+                    }
+                    AppButton {
+                        text: qsTr("Привязать")
+                        variant: "secondary"
+                        enabled: totpUriField.text.length > 0
+                        onClicked: root.linkTotpRequested(totpUriField.text)
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    visible: root.totpLinkError.length > 0
+                    text: root.totpLinkError
+                    color: Theme.danger
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeCaption
                 }
             }
 

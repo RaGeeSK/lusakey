@@ -17,6 +17,7 @@
 // unable to see it's a QObject*, so overload resolution falls through to
 // the QVariant overload and fails with a deleted-constructor error.
 #include "bridge/vault_list_model.h"
+#include "bridge/totp_list_model.h"
 
 namespace {
 
@@ -83,6 +84,7 @@ int main(int argc, char* argv[]) {
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("appController"), &appController);
     engine.rootContext()->setContextProperty(QStringLiteral("vaultListModel"), appController.vaultListModel());
+    engine.rootContext()->setContextProperty(QStringLiteral("totpListModel"), appController.totpListModel());
 
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
