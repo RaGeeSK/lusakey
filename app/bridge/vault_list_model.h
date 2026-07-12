@@ -20,6 +20,7 @@ public:
         TitleRole,
         UsernameRole,
         HasTotpRole,
+        FolderIdRole,
     };
 
     explicit VaultListModel(QObject* parent = nullptr);

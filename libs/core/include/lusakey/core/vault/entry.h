@@ -59,6 +59,7 @@ struct EntrySummary {
     std::string title;
     std::string username;
     bool hasTotp = false;
+    std::optional<FolderId> folderId;
 };
 
 } // namespace lusakey::core::vault

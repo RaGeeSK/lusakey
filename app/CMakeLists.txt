@@ -14,6 +14,8 @@ qt_add_executable(lusakey
     bridge/vault_list_model.cpp
     bridge/totp_list_model.h
     bridge/totp_list_model.cpp
+    bridge/folder_list_model.h
+    bridge/folder_list_model.cpp
     bridge/activity_event_filter.h
     bridge/activity_event_filter.cpp
 )
@@ -48,6 +50,8 @@ qt_add_qml_module(lusakey
         ui/components/KeyIcon.qml
         ui/components/ShieldIcon.qml
         ui/components/GearIcon.qml
+        ui/components/ChevronDownIcon.qml
+        ui/components/AppComboBox.qml
         ui/screens/WelcomeScreen.qml
         ui/screens/UnlockScreen.qml
         ui/screens/VaultListScreen.qml

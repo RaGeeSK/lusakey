@@ -11,15 +11,23 @@ option(LUSAKEY_BUILD_NMHOST "Build the native-messaging host stub" OFF)
 
 add_subdirectory(libs/core)
 add_subdirectory(libs/ipc)
+# lusakey-nmhost-logic (the testable dispatch library) is always built here,
+# same as lusakey-ipc — only the final lusakey-nmhost executable inside is
+# gated behind LUSAKEY_BUILD_NMHOST (see nmhost/CMakeLists.txt).
+add_subdirectory(nmhost)
 
 if(LUSAKEY_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests/core)
     add_subdirectory(tests/ipc)
+    add_subdirectory(tests/nmhost-logic)
 endif()
 
 if(LUSAKEY_BUILD_APP)
     add_subdirectory(libs/qr)
+    if(LUSAKEY_BUILD_TESTS)
+        add_subdirectory(tests/qr)
+    endif()
     add_subdirectory(app)
 
     # Linux .deb packaging (CPack itself must be include()'d after the
@@ -37,8 +45,4 @@ if(LUSAKEY_BUILD_APP)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libstdc++6")
         include(CPack)
     endif()
-endif()
-
-if(LUSAKEY_BUILD_NMHOST)
-    add_subdirectory(nmhost)
 endif()

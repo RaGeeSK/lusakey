@@ -1,0 +1,9 @@
+{
+  "name": "com.lusakey.nmhost",
+  "description": "lusakey native messaging host — lets a browser extension talk to the local lusakey vault",
+  "path": "REPLACED_AT_INSTALL_TIME",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://REPLACE_WITH_REAL_EXTENSION_ID/"
+  ]
+}

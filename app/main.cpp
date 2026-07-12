@@ -18,6 +18,7 @@
 // the QVariant overload and fails with a deleted-constructor error.
 #include "bridge/vault_list_model.h"
 #include "bridge/totp_list_model.h"
+#include "bridge/folder_list_model.h"
 
 namespace {
 
@@ -85,6 +86,7 @@ int main(int argc, char* argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("appController"), &appController);
     engine.rootContext()->setContextProperty(QStringLiteral("vaultListModel"), appController.vaultListModel());
     engine.rootContext()->setContextProperty(QStringLiteral("totpListModel"), appController.totpListModel());
+    engine.rootContext()->setContextProperty(QStringLiteral("folderListModel"), appController.folderListModel());
 
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,

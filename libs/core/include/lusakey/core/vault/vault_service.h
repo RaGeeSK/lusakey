@@ -27,6 +27,7 @@ enum class ServiceError {
     FileNotFound,
     NotUnlocked,
     EntryNotFound,
+    FolderNotFound,
     IoError,
     InvalidArgument,
 };
@@ -44,6 +45,10 @@ private:
 
 struct EntryFilter {
     std::string searchText;              // matched against title/username/url, case-insensitive
+    // FolderId(0) is a sentinel meaning "entries with no folder assigned"
+    // (real folders are numbered from 1, same "0 = unassigned" convention
+    // Entry::folderId itself already uses) — std::nullopt means "don't
+    // filter by folder at all".
     std::optional<FolderId> folderId;
     std::optional<std::string> tag;
 };
@@ -142,6 +147,19 @@ public:
     EntryId addEntry(const EntryDraft& draft);
     void updateEntry(EntryId id, const EntryDraft& draft); // throws ServiceException(EntryNotFound)
     void removeEntry(EntryId id);                          // throws ServiceException(EntryNotFound)
+
+    // Folder CRUD. Folders are a flat, unordered registry (no nesting) — see
+    // Folder in vault_model.h. Throws ServiceException(InvalidArgument) if
+    // `name` is empty.
+    std::vector<Folder> listFolders() const;
+    FolderId addFolder(const std::string& name);
+    // Throws ServiceException(FolderNotFound) if `id` doesn't exist, or
+    // (InvalidArgument) if `name` is empty.
+    void renameFolder(FolderId id, const std::string& name);
+    // Throws ServiceException(FolderNotFound) if `id` doesn't exist. Entries
+    // assigned to this folder are orphaned (their folderId is cleared), not
+    // deleted.
+    void removeFolder(FolderId id);
 
     // Current TOTP code for entry `id`'s TotpSpec (zero-padded, e.g. "007123").
     // Throws ServiceException(EntryNotFound) or (InvalidArgument) if the

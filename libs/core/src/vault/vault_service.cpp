@@ -259,8 +259,11 @@ std::vector<EntrySummary> VaultService::listEntries(const EntryFilter& filter) c
     const auto needle = toLower(filter.searchText);
     std::vector<EntrySummary> results;
     for (const auto& [id, entry] : model_.entries()) {
-        if (filter.folderId && entry.folderId != filter.folderId) {
-            continue;
+        if (filter.folderId) {
+            const bool wantsUnfiled = (*filter.folderId == 0);
+            if (wantsUnfiled ? entry.folderId.has_value() : entry.folderId != filter.folderId) {
+                continue;
+            }
         }
         if (filter.tag &&
             std::find(entry.tags.begin(), entry.tags.end(), *filter.tag) == entry.tags.end()) {
@@ -271,7 +274,7 @@ std::vector<EntrySummary> VaultService::listEntries(const EntryFilter& filter) c
             toLower(entry.url).find(needle) == std::string::npos) {
             continue;
         }
-        results.push_back(EntrySummary{entry.id, entry.title, entry.username, entry.totp.has_value()});
+        results.push_back(EntrySummary{entry.id, entry.title, entry.username, entry.totp.has_value(), entry.folderId});
     }
     std::sort(results.begin(), results.end(),
               [](const EntrySummary& a, const EntrySummary& b) { return a.title < b.title; });
@@ -336,6 +339,59 @@ void VaultService::removeEntry(EntryId id) {
     requireUnlocked();
     if (!model_.removeEntry(id)) {
         throw ServiceException(ServiceError::EntryNotFound, "Entry not found");
+    }
+    save();
+    notifyChanged();
+}
+
+std::vector<Folder> VaultService::listFolders() const {
+    requireUnlocked();
+    auto folders = model_.folders();
+    std::sort(folders.begin(), folders.end(),
+              [](const Folder& a, const Folder& b) { return a.name < b.name; });
+    return folders;
+}
+
+FolderId VaultService::addFolder(const std::string& name) {
+    requireUnlocked();
+    if (name.empty()) {
+        throw ServiceException(ServiceError::InvalidArgument, "Folder name must not be empty");
+    }
+    const auto id = model_.addFolder(Folder{0, name});
+    save();
+    notifyChanged();
+    return id;
+}
+
+void VaultService::renameFolder(FolderId id, const std::string& name) {
+    requireUnlocked();
+    if (name.empty()) {
+        throw ServiceException(ServiceError::InvalidArgument, "Folder name must not be empty");
+    }
+    if (!model_.renameFolder(id, name)) {
+        throw ServiceException(ServiceError::FolderNotFound, "Folder not found");
+    }
+    save();
+    notifyChanged();
+}
+
+void VaultService::removeFolder(FolderId id) {
+    requireUnlocked();
+    if (!model_.removeFolder(id)) {
+        throw ServiceException(ServiceError::FolderNotFound, "Folder not found");
+    }
+    // Orphan entries that referenced this folder, rather than deleting them.
+    // Collected up front, then applied — mutating model_ while iterating its
+    // own entries() reference would be needlessly fragile to reason about.
+    std::vector<Entry> orphaned;
+    for (const auto& [entryId, entry] : model_.entries()) {
+        if (entry.folderId == id) {
+            orphaned.push_back(entry);
+        }
+    }
+    for (auto& entry : orphaned) {
+        entry.folderId = std::nullopt;
+        model_.updateEntry(entry);
     }
     save();
     notifyChanged();

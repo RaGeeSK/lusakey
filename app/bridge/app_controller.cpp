@@ -1,19 +1,26 @@
 #include "app_controller.h"
 
+#include <algorithm>
+
 #include <QClipboard>
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QImage>
 #include <QStandardPaths>
 #include <QTimer>
 
 #include "lusakey/core/totp/otpauth_uri.h"
 #include "lusakey/core/util/password_generator.h"
+#include "lusakey/qr/qr_decoder.h"
+#include "folder_list_model.h"
 #include "vault_list_model.h"
 
 using lusakey::core::vault::EntryDraft;
 using lusakey::core::vault::EntryFilter;
 using lusakey::core::vault::EntryId;
+using lusakey::core::vault::Folder;
+using lusakey::core::vault::FolderId;
 using lusakey::core::vault::ImportMode;
 using lusakey::core::vault::ServiceException;
 using lusakey::core::vault::TotpSpec;
@@ -26,7 +33,8 @@ constexpr int kDefaultClipboardClearSeconds = 20;
 AppController::AppController(QObject* parent)
     : QObject(parent),
       vaultListModel_(std::make_unique<VaultListModel>()),
-      totpListModel_(std::make_unique<TotpListModel>()) {
+      totpListModel_(std::make_unique<TotpListModel>()),
+      folderListModel_(std::make_unique<FolderListModel>()) {
     settings_.beginGroup(QStringLiteral("security"));
     autoLockEnabled_ = settings_.value(QStringLiteral("autoLockEnabled"), true).toBool();
     autoLockMinutes_ = settings_.value(QStringLiteral("autoLockMinutes"), kDefaultAutoLockMinutes).toInt();
@@ -174,6 +182,7 @@ void AppController::createVault(const QString& masterPassword) {
         emit unlocked();
         refreshVaultList();
         refreshTotpList();
+        refreshFolderList();
         resetAutoLockTimer();
     } catch (const ServiceException& e) {
         emit errorOccurred(QString::fromStdString(e.what()));
@@ -189,6 +198,7 @@ void AppController::unlock(const QString& masterPassword) {
         emit unlocked();
         refreshVaultList();
         refreshTotpList();
+        refreshFolderList();
         resetAutoLockTimer();
     } catch (const ServiceException& e) {
         lastUnlockFailed_ = true;
@@ -205,6 +215,7 @@ void AppController::lock() {
     emit locked();
     refreshVaultList();
     refreshTotpList();
+    refreshFolderList();
 }
 
 void AppController::unlockWithRecoveryAnswers(const QStringList& answers) {
@@ -225,6 +236,7 @@ void AppController::unlockWithRecoveryAnswers(const QStringList& answers) {
         emit unlocked();
         refreshVaultList();
         refreshTotpList();
+        refreshFolderList();
         resetAutoLockTimer();
     } catch (const ServiceException& e) {
         lastRecoveryFailed_ = true;
@@ -281,6 +293,7 @@ void AppController::resetVault() {
         emit locked(); // sends the UI back to the unlock/create screen
         refreshVaultList();
         refreshTotpList();
+        refreshFolderList();
     } catch (const ServiceException& e) {
         emit errorOccurred(QString::fromStdString(e.what()));
     }
@@ -362,11 +375,90 @@ QVariantMap AppController::getEntry(qulonglong entryId) {
         result[QStringLiteral("url")] = QString::fromStdString(entry.url);
         result[QStringLiteral("notes")] = QString::fromStdString(entry.notes);
         result[QStringLiteral("hasTotp")] = entry.totp.has_value();
+        result[QStringLiteral("folderId")] = entry.folderId.has_value() ? static_cast<qulonglong>(*entry.folderId) : 0ULL;
         return result;
     } catch (const ServiceException& e) {
         emit errorOccurred(QString::fromStdString(e.what()));
         return {};
     }
+}
+
+qulonglong AppController::addFolder(const QString& name) {
+    resetAutoLockTimer();
+    try {
+        const auto id = service_.addFolder(name.toStdString());
+        refreshFolderList();
+        return static_cast<qulonglong>(id);
+    } catch (const ServiceException& e) {
+        emit errorOccurred(QString::fromStdString(e.what()));
+        return 0;
+    }
+}
+
+void AppController::renameFolder(qulonglong folderId, const QString& name) {
+    resetAutoLockTimer();
+    try {
+        service_.renameFolder(static_cast<FolderId>(folderId), name.toStdString());
+        refreshFolderList();
+    } catch (const ServiceException& e) {
+        emit errorOccurred(QString::fromStdString(e.what()));
+    }
+}
+
+void AppController::removeFolder(qulonglong folderId) {
+    resetAutoLockTimer();
+    try {
+        service_.removeFolder(static_cast<FolderId>(folderId));
+        // The removed folder may have been what the list was filtered on,
+        // and entries referencing it were just orphaned server-side.
+        if (folderFilter_ == static_cast<qlonglong>(folderId)) {
+            folderFilter_ = -1;
+        }
+        refreshFolderList();
+        refreshVaultList();
+    } catch (const ServiceException& e) {
+        emit errorOccurred(QString::fromStdString(e.what()));
+    }
+}
+
+void AppController::setEntryFolder(qulonglong entryId, qulonglong folderId) {
+    resetAutoLockTimer();
+    try {
+        const auto id = static_cast<EntryId>(entryId);
+        const auto existing = service_.getEntry(id);
+        EntryDraft draft;
+        draft.title = existing.title;
+        draft.username = existing.username;
+        draft.password = existing.password;
+        draft.url = existing.url;
+        draft.notes = existing.notes;
+        draft.tags = existing.tags;
+        draft.totp = existing.totp;
+        draft.folderId = folderId == 0 ? std::nullopt : std::optional<FolderId>(static_cast<FolderId>(folderId));
+        service_.updateEntry(id, draft);
+        refreshVaultList();
+    } catch (const ServiceException& e) {
+        emit errorOccurred(QString::fromStdString(e.what()));
+    }
+}
+
+void AppController::setFolderFilter(qlonglong folderId) {
+    folderFilter_ = folderId;
+    refreshVaultList();
+}
+
+QVariantList AppController::folderOptions() {
+    QVariantList result;
+    if (!service_.isUnlocked()) {
+        return result;
+    }
+    for (const auto& folder : service_.listFolders()) {
+        QVariantMap entry;
+        entry[QStringLiteral("folderId")] = static_cast<qulonglong>(folder.id);
+        entry[QStringLiteral("name")] = QString::fromStdString(folder.name);
+        result.append(entry);
+    }
+    return result;
 }
 
 bool AppController::setEntryTotp(qulonglong entryId, const QString& otpauthUri) {
@@ -431,6 +523,42 @@ bool AppController::addTotpEntry(const QString& otpauthUri) {
     } catch (const ServiceException& e) {
         emit errorOccurred(QString::fromStdString(e.what()));
         return false;
+    }
+}
+
+QString AppController::decodeTotpQrImage(const QUrl& fileUrl) {
+    const QString path = fileUrl.isLocalFile() ? fileUrl.toLocalFile() : fileUrl.toString();
+    QImage image(path);
+    if (image.isNull()) {
+        emit errorOccurred(tr("Не удалось открыть файл изображения"));
+        return {};
+    }
+    const QImage gray = image.convertToFormat(QImage::Format_Grayscale8);
+
+    lusakey::core::qr::GrayscaleImage grayscale;
+    grayscale.width = gray.width();
+    grayscale.height = gray.height();
+    grayscale.pixels.resize(static_cast<std::size_t>(grayscale.width) * static_cast<std::size_t>(grayscale.height));
+    // QImage scanlines are stride-padded (bytesPerLine() >= width for
+    // Format_Grayscale8) — copy row by row, not a single memcpy of the
+    // whole buffer, to match GrayscaleImage's documented tightly-packed
+    // (no padding) layout.
+    for (int y = 0; y < grayscale.height; ++y) {
+        const uchar* line = gray.constScanLine(y);
+        std::copy_n(line, grayscale.width,
+                    grayscale.pixels.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(grayscale.width));
+    }
+
+    try {
+        const auto uri = lusakey::core::qr::decode(grayscale);
+        if (!uri.has_value()) {
+            emit errorOccurred(tr("QR-код не найден на изображении"));
+            return {};
+        }
+        return QString::fromStdString(*uri);
+    } catch (const std::runtime_error& e) {
+        emit errorOccurred(QString::fromStdString(e.what()));
+        return {};
     }
 }
 
@@ -522,6 +650,7 @@ void AppController::importVault(const QString& srcPath, const QString& srcPasswo
                                   merge ? ImportMode::Merge : ImportMode::Replace);
         refreshVaultList();
         refreshTotpList();
+        refreshFolderList();
     } catch (const ServiceException& e) {
         emit errorOccurred(QString::fromStdString(e.what()));
     }
@@ -538,8 +667,15 @@ void AppController::changeMasterPassword(const QString& oldPassword, const QStri
 void AppController::refreshVaultList() {
     EntryFilter filter;
     filter.searchText = searchText_.toStdString();
+    if (folderFilter_ >= 0) {
+        filter.folderId = static_cast<FolderId>(folderFilter_);
+    }
     vaultListModel_->setEntries(service_.isUnlocked() ? service_.listEntries(filter)
                                                        : std::vector<lusakey::core::vault::EntrySummary>{});
+}
+
+void AppController::refreshFolderList() {
+    folderListModel_->setFolders(service_.isUnlocked() ? service_.listFolders() : std::vector<Folder>{});
 }
 
 TotpListModel::Row AppController::buildTotpRow(EntryId id, const std::string& title) const {

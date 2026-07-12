@@ -102,7 +102,8 @@ ApplicationWindow {
                     password: entry.password || "",
                     url: entry.url || "",
                     notes: entry.notes || "",
-                    hasTotp: entry.hasTotp || false
+                    hasTotp: entry.hasTotp || false,
+                    folderId: entry.folderId || 0
                 });
             }
             onAddEntryRequested: {

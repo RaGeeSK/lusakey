@@ -4,6 +4,8 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
+#include <QVariantList>
 #include <QVariantMap>
 
 #include <memory>
@@ -13,6 +15,7 @@
 #include "totp_list_model.h"
 
 class VaultListModel;
+class FolderListModel;
 class QTimer;
 
 // Thin Qt/QML-facing adapter over lusakey::core::vault::VaultService. All
@@ -76,6 +79,7 @@ public:
 
     VaultListModel* vaultListModel() const { return vaultListModel_.get(); }
     TotpListModel* totpListModel() const { return totpListModel_.get(); }
+    FolderListModel* folderListModel() const { return folderListModel_.get(); }
 
 public slots:
     void setAutoLockEnabled(bool enabled);
@@ -127,6 +131,19 @@ public slots:
     // Empty map if entryId doesn't exist or the vault is locked.
     QVariantMap getEntry(qulonglong entryId);
 
+    // Folder CRUD + per-entry assignment. folderId == 0 means "no folder"
+    // wherever an entry's folder is being set/cleared (setEntryFolder) —
+    // matches EntryFilter's "0 = unfiled" sentinel in libs/core.
+    qulonglong addFolder(const QString& name);
+    void renameFolder(qulonglong folderId, const QString& name);
+    void removeFolder(qulonglong folderId);
+    void setEntryFolder(qulonglong entryId, qulonglong folderId);
+    // -1 = show all entries, 0 = unfiled only, >0 = that folder's entries.
+    void setFolderFilter(qlonglong folderId);
+    // One-shot {folderId, name} list for populating a picker (e.g. the entry
+    // detail panel's folder combo box) without needing a live model there.
+    QVariantList folderOptions();
+
     // Links entryId to a TOTP secret parsed from an otpauth://totp/... URI
     // (the format QR codes decode to — paste-in, no image import here; see
     // libs/qr for that, not yet wired to this method). Returns false (and
@@ -141,6 +158,13 @@ public slots:
     // LinkTotpDialog. Returns false (and emits errorOccurred) if the URI is
     // malformed.
     bool addTotpEntry(const QString& otpauthUri);
+
+    // Decodes a QR code from an image file and returns the otpauth://totp/...
+    // URI found inside, or an empty string (+ errorOccurred) if the file
+    // can't be opened, no QR code is found, or the image data is malformed.
+    // Pure decode step — the caller (LinkTotpDialog.qml) feeds the result
+    // into setEntryTotp()/addTotpEntry() exactly like a manually pasted URI.
+    QString decodeTotpQrImage(const QUrl& fileUrl);
 
     QString currentTotpCode(qulonglong entryId);
     int currentTotpSecondsRemaining(qulonglong entryId);
@@ -165,6 +189,7 @@ private:
     // unlocked/locked). tickTotpList(), by contrast, only refreshes the
     // current code/countdown for that same set every second.
     void refreshTotpList();
+    void refreshFolderList();
     void tickTotpList();
     TotpListModel::Row buildTotpRow(lusakey::core::vault::EntryId id, const std::string& title) const;
     QString defaultVaultPath() const;
@@ -187,9 +212,11 @@ private:
     lusakey::core::vault::VaultService service_;
     std::unique_ptr<VaultListModel> vaultListModel_;
     std::unique_ptr<TotpListModel> totpListModel_;
+    std::unique_ptr<FolderListModel> folderListModel_;
     bool lastUnlockFailed_ = false;
     bool lastRecoveryFailed_ = false;
     QString searchText_;
+    qlonglong folderFilter_ = -1;
 
     QTimer* autoLockTimer_ = nullptr;
     QTimer* clipboardClearTimer_ = nullptr;

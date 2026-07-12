@@ -34,6 +34,8 @@ public:
 
     FolderId addFolder(Folder folder);
     bool removeFolder(FolderId id);
+    // Returns false if no folder with this id exists.
+    bool renameFolder(FolderId id, const std::string& name);
 
     const Entry* findEntry(EntryId id) const;
     const std::unordered_map<EntryId, Entry>& entries() const { return entries_; }
