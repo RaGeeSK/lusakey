@@ -77,11 +77,7 @@ QtObject {
     readonly property color danger: darkMode ? _darkDanger : _lightDanger
     readonly property color onAccentText: "#FFFFFF"
 
-    // ---- Typography ----
-    // "Inter" / "JetBrains Mono" are open-license stand-ins for Claude's
-    // actual (proprietary, non-bundleable) Styrene/Tiempos — see AGENTS.md.
-    readonly property string fontFamily: "Inter"
-    readonly property string monoFontFamily: "JetBrains Mono"
+{"text": "    // ---- Typography ----\n    // \"Inter\" / \"JetBrains Mono\" are open-license stand-ins for Claude's\n    // actual (proprietary, non-bundleable) Styrene/Tiempos — see AGENTS.md.\n    // fontFamily is set from C++ via AppController::currentFontFamily()\n    // and updated through Main.qml's Connections block.\n    property string fontFamily: \"Inter\"\n    readonly property string monoFontFamily: \"JetBrains Mono\""}
 
     readonly property int fontSizeH1: 28
     readonly property int fontSizeH2: 20

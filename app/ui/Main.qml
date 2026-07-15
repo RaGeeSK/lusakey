@@ -22,6 +22,7 @@ ApplicationWindow {
 
     Component.onCompleted: {
         Theme.darkMode = Qt.styleHints.colorScheme === Qt.Dark;
+        Theme.fontFamily = appController.currentFontFamily;
 
         // Never let the window shrink below the unlock screen's own card —
         // read once here (not bound) since the card's height changes with
@@ -102,8 +103,7 @@ ApplicationWindow {
                     password: entry.password || "",
                     url: entry.url || "",
                     notes: entry.notes || "",
-                    hasTotp: entry.hasTotp || false,
-                    folderId: entry.folderId || 0
+                    hasTotp: entry.hasTotp || false
                 });
             }
             onAddEntryRequested: {
@@ -159,25 +159,7 @@ ApplicationWindow {
         }
     }
 
-    Component {
-        id: settingsComponent
-        SettingsScreen {
-            onBackRequested: stack.pop()
-            onExportRequested: {
-                // TODO: replace with a QtQuick.Dialogs FileDialog for the destination path.
-                console.warn("lusakey: export not wired to a file picker yet");
-            }
-            onImportRequested: {
-                // TODO: replace with a QtQuick.Dialogs FileDialog + password prompt.
-                console.warn("lusakey: import not wired to a file picker yet");
-            }
-            onChangeMasterPasswordRequested: {
-                // TODO: a small dialog collecting old/new password, then
-                // appController.changeMasterPassword(oldPw, newPw).
-                console.warn("lusakey: change-master-password dialog not built yet");
-            }
-        }
-    }
+{"text": "    Component {\n        id: settingsComponent\n        SettingsScreen {\n            onBackRequested: stack.pop()\n            onExportRequested: {\n                // TODO: replace with a QtQuick.Dialogs FileDialog for the destination path.\n                console.warn(\"lusakey: export not wired to a file picker yet\");\n            }\n            onImportRequested: {\n                // TODO: replace with a QtQuick.Dialogs FileDialog + password prompt.\n                console.warn(\"lusakey: import not wired to a file picker yet\");\n            }\n            onChangeMasterPasswordRequested: {\n                // TODO: a small dialog collecting old/new password, then\n                // appController.changeMasterPassword(oldPw, newPw).\n                console.warn(\"lusakey: change-master-password dialog not built yet\");\n            }\n        }\n    }\n\n    Component {\n        id: fontSelectorComponent\n        FontSelectorScreen {\n            onBackRequested: stack.pop()\n        }\n    }"}
 
     Connections {
         target: appController
@@ -189,6 +171,9 @@ ApplicationWindow {
         }
         function onErrorOccurred(message) {
             console.warn("lusakey:", message);
+        }
+        function onFontFamilyChanged() {
+            Theme.fontFamily = appController.currentFontFamily;
         }
     }
 }

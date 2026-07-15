@@ -28,10 +28,6 @@ Dialog {
     // binding-loop bug when a Layout-typed contentItem's implicitWidth is
     // assigned directly).
     width: 360
-    // Capped height so this dialog can't grow taller than the window on a
-    // small screen — the ScrollView below handles reaching the bottom
-    // buttons when content overflows it (same pattern as LinkTotpDialog.qml).
-    height: Math.min(480, (Overlay.overlay ? Overlay.overlay.height : 480) - Theme.space6 * 2)
 
     background: Rectangle {
         radius: Theme.radiusXl
@@ -65,14 +61,7 @@ Dialog {
         }
     }
 
-    contentItem: ScrollView {
-        id: dialogScroll
-        clip: true
-        contentWidth: availableWidth
-
-        ColumnLayout {
-        x: Theme.space3
-        width: dialogScroll.availableWidth - Theme.space3 * 2
+    contentItem: ColumnLayout {
         spacing: Theme.space4
 
         Text {
@@ -154,7 +143,6 @@ Dialog {
                 variant: "primary"
                 onClicked: root.useRequested(root.generatedPassword)
             }
-        }
         }
     }
 }

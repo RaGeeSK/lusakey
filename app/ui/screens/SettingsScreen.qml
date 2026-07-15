@@ -1,7 +1,4 @@
-import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls.Basic
-import Lusakey
+{"text": "import QtQuick\r\nimport QtQuick.Layouts\r\nimport QtQuick.Controls\r\nimport Lusakey"}
 
 Item {
     id: root
@@ -183,21 +180,7 @@ Item {
                         font.weight: Font.DemiBold
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text {
-                            Layout.fillWidth: true
-                            text: qsTr("Тёмная тема")
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                        }
-                        AppSwitch {
-                            checked: Theme.darkMode
-                            onToggled: Theme.darkMode = checked
-                        }
-                    }
-                }
-            }
+{"text": "                    RowLayout {\r\n                        Layout.fillWidth: true\r\n                        Text {\r\n                            Layout.fillWidth: true\r\n                            text: qsTr(\"Тёмная тема\")\r\n                            color: Theme.textPrimary\r\n                            font.family: Theme.fontFamily\r\n                        }\r\n                        AppSwitch {\r\n                            checked: Theme.darkMode\r\n                            onToggled: Theme.darkMode = checked\r\n                        }\r\n                    }\r\n\r\n                    RowLayout {\r\n                        Layout.fillWidth: true\r\n                        Text {\r\n                            Layout.fillWidth: true\r\n                            text: qsTr(\"Шрифт интерфейса\")\r\n                            color: Theme.textPrimary\r\n                            font.family: Theme.fontFamily\r\n                        }\r\n                        ComboBox {\r\n                            model: appController.fontFamilies\r\n                            textRole: \"displayText\"\r\n                            displayText: appController.currentFontFamily\r\n                            onCurrentIndexChanged: appController.setFontFamily(currentText)\r\n                            implicitWidth: 200\r\n                        }\r\n                    }\r\n                }\r\n            }"}
 
             Card {
                 Layout.fillWidth: true

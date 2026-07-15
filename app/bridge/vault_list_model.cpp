@@ -25,9 +25,6 @@ QVariant VaultListModel::data(const QModelIndex& index, int role) const {
             return QString::fromStdString(entry.username);
         case HasTotpRole:
             return entry.hasTotp;
-        case FolderIdRole:
-            return entry.folderId.has_value() ? QVariant::fromValue(static_cast<qulonglong>(*entry.folderId))
-                                               : QVariant();
         default:
             return {};
     }
@@ -39,7 +36,6 @@ QHash<int, QByteArray> VaultListModel::roleNames() const {
         {TitleRole, "title"},
         {UsernameRole, "username"},
         {HasTotpRole, "hasTotp"},
-        {FolderIdRole, "folderId"},
     };
 }
 

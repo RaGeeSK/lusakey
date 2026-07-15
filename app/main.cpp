@@ -12,44 +12,13 @@
 
 #include "bridge/activity_event_filter.h"
 #include "bridge/app_controller.h"
+#include "bridge/font_manager.h"
 // Needed for the complete VaultListModel (QObject-derived) type: without
 // it, app_controller.h's forward declaration leaves setContextProperty()
 // unable to see it's a QObject*, so overload resolution falls through to
 // the QVariant overload and fails with a deleted-constructor error.
 #include "bridge/vault_list_model.h"
 #include "bridge/totp_list_model.h"
-#include "bridge/folder_list_model.h"
-
-namespace {
-
-// Fonts are loaded from a plain filesystem path next to the executable
-// (resolved from applicationDirPath(), NOT the current working directory —
-// a bare relative path would break depending on how the exe is launched,
-// e.g. a desktop shortcut with a different working directory), NOT embedded
-// via the Qt resource system — see resources/fonts/README.md and
-// app/CMakeLists.txt's post-build copy step for how the files get there.
-// The actual .ttf files (Inter, JetBrains Mono; both OFL). A missing file
-// just skips with a warning (QFontDatabase::addApplicationFont returns -1)
-// rather than failing.
-void loadBundledFonts() {
-    const QDir fontsDir(QCoreApplication::applicationDirPath() + QStringLiteral("/fonts"));
-    const QStringList fileNames = {
-        QStringLiteral("Inter-Regular.ttf"),
-        QStringLiteral("Inter-Medium.ttf"),
-        QStringLiteral("Inter-SemiBold.ttf"),
-        QStringLiteral("Inter-Bold.ttf"),
-        QStringLiteral("JetBrainsMono-Regular.ttf"),
-        QStringLiteral("JetBrainsMono-Medium.ttf"),
-    };
-    for (const auto& fileName : fileNames) {
-        const auto path = fontsDir.filePath(fileName);
-        if (QFontDatabase::addApplicationFont(path) < 0) {
-            qWarning() << "lusakey: could not load bundled font (see resources/fonts/README.md):" << path;
-        }
-    }
-}
-
-} // namespace
 
 int main(int argc, char* argv[]) {
 #ifdef __linux__
@@ -64,7 +33,13 @@ int main(int argc, char* argv[]) {
     QGuiApplication::setOrganizationName(QStringLiteral("lusakey"));
     QGuiApplication::setApplicationName(QStringLiteral("lusakey"));
 
-    loadBundledFonts();
+    // Load bundled fonts via centralized FontManager.
+    // It's OK if fonts fail to load — the app continues with system fonts.
+    FontManager& fontManager = FontManager::instance();
+    if (!fontManager.loadBundledFonts()) {
+        // Warnings are already printed by FontManager::loadBundledFonts()
+        // via qWarning(), no need to duplicate here.
+    }
 
     AppController appController;
 
@@ -86,7 +61,6 @@ int main(int argc, char* argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("appController"), &appController);
     engine.rootContext()->setContextProperty(QStringLiteral("vaultListModel"), appController.vaultListModel());
     engine.rootContext()->setContextProperty(QStringLiteral("totpListModel"), appController.totpListModel());
-    engine.rootContext()->setContextProperty(QStringLiteral("folderListModel"), appController.folderListModel());
 
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,

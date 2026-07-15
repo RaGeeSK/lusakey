@@ -17,11 +17,6 @@ Item {
     // of the sidebar's own "views").
     property string currentView: "entries"
 
-    // Mirrors AppController's folderFilter_: -1 = all entries, 0 = unfiled
-    // only, >0 = that folder's entries. Kept here too (not just server-side)
-    // so the sidebar knows which row to highlight as selected.
-    property var folderFilter: -1
-
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -50,95 +45,9 @@ Item {
                 SidebarItem {
                     text: qsTr("Все записи")
                     icon: keyIconComponent
-                    selected: root.currentView === "entries" && root.folderFilter === -1
-                    onClicked: {
-                        root.currentView = "entries";
-                        root.folderFilter = -1;
-                        appController.setFolderFilter(-1);
-                    }
+                    selected: root.currentView === "entries"
+                    onClicked: root.currentView = "entries"
                 }
-                SidebarItem {
-                    text: qsTr("Без папки")
-                    indent: Theme.space3
-                    selected: root.currentView === "entries" && root.folderFilter === 0
-                    onClicked: {
-                        root.currentView = "entries";
-                        root.folderFilter = 0;
-                        appController.setFolderFilter(0);
-                    }
-                }
-                Repeater {
-                    model: folderListModel
-
-                    delegate: SidebarItem {
-                        text: model.name
-                        indent: Theme.space3
-                        selected: root.currentView === "entries" && root.folderFilter === model.folderId
-                        trailingAction: closeIconButtonComponent
-                        onClicked: {
-                            root.currentView = "entries";
-                            root.folderFilter = model.folderId;
-                            appController.setFolderFilter(model.folderId);
-                        }
-
-                        Component {
-                            id: closeIconButtonComponent
-                            Rectangle {
-                                implicitWidth: 22
-                                implicitHeight: 22
-                                radius: Theme.radiusSm
-                                color: removeFolderMouseArea.containsMouse ? Theme.borderSubtle : "transparent"
-                                Behavior on color { ColorAnimation { duration: 100 } }
-
-                                CloseIcon {
-                                    anchors.centerIn: parent
-                                    implicitWidth: 10
-                                    implicitHeight: 10
-                                    strokeColor: Theme.textSecondary
-                                }
-
-                                MouseArea {
-                                    id: removeFolderMouseArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: appController.removeFolder(model.folderId)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Theme.space3
-                    spacing: Theme.space1
-
-                    AppTextField {
-                        id: newFolderField
-                        Layout.fillWidth: true
-                        placeholderText: qsTr("Новая папка")
-                        onAccepted: {
-                            if (text.length > 0) {
-                                appController.addFolder(text);
-                                text = "";
-                            }
-                        }
-                    }
-                    AppButton {
-                        text: qsTr("+")
-                        variant: "ghost"
-                        onClicked: {
-                            if (newFolderField.text.length > 0) {
-                                appController.addFolder(newFolderField.text);
-                                newFolderField.text = "";
-                            }
-                        }
-                    }
-                }
-
-                Item { Layout.preferredHeight: Theme.space2 }
-
                 SidebarItem {
                     text: qsTr("Коды авторизации")
                     icon: shieldIconComponent

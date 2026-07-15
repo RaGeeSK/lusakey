@@ -14,10 +14,10 @@ qt_add_executable(lusakey
     bridge/vault_list_model.cpp
     bridge/totp_list_model.h
     bridge/totp_list_model.cpp
-    bridge/folder_list_model.h
-    bridge/folder_list_model.cpp
     bridge/activity_event_filter.h
     bridge/activity_event_filter.cpp
+    bridge/font_manager.h
+    bridge/font_manager.cpp
 )
 
 # Marks Theme.qml as the module's singleton (accessed as `Theme` from any
@@ -50,8 +50,6 @@ qt_add_qml_module(lusakey
         ui/components/KeyIcon.qml
         ui/components/ShieldIcon.qml
         ui/components/GearIcon.qml
-        ui/components/ChevronDownIcon.qml
-        ui/components/AppComboBox.qml
         ui/screens/WelcomeScreen.qml
         ui/screens/UnlockScreen.qml
         ui/screens/VaultListScreen.qml
@@ -90,8 +88,8 @@ endif()
 file(GLOB LUSAKEY_FONT_FILES "${CMAKE_SOURCE_DIR}/resources/fonts/*.ttf")
 if(LUSAKEY_FONT_FILES)
     add_custom_command(TARGET lusakey POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:lusakey>/fonts"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LUSAKEY_FONT_FILES} "$<TARGET_FILE_DIR:lusakey>/fonts"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:lusakey>/fonts>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LUSAKEY_FONT_FILES} "$<TARGET_FILE_DIR:lusakey>/fonts>"
         COMMENT "Copying bundled fonts next to the lusakey executable"
         VERBATIM
     )
