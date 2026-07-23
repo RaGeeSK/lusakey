@@ -1,0 +1,147 @@
+# Font Manager — lusakey
+
+## Архитектура программного менеджера шрифтов
+
+### Стратегия
+
+lusakey использует **внешние файлы шрифтов**, а не встраивание через Qt Resource System (`.qrc`).
+
+**Плюсы этой стратегии:**
+- Простота — можно обновить шрифты просто скопировав файлы, без перекомпиляции
+- Прозрачность — визуальная проверка того, какие шрифты установлены
+- Совместимость с лицензиями OFL — файлы шрифтов остаются отдельными
+
+**Минусы:**
+- Файлы шрифтов должны быть скачаны отдельно (не включены в репозиторий)
+- Зависимость от правильной настройки post-build копирования
+
+### Где лежат файлы шрифтов
+
+```
+resources/fonts/
+├── Inter-Regular.ttf
+├── Inter-Medium.ttf
+├── Inter-SemiBold.ttf
+├── Inter-Bold.ttf
+├── JetBrainsMono-Regular.ttf
+└── JetBrainsMono-Medium.ttf
+```
+
+**Источники:**
+- **Inter** — https://github.com/rsms/inter/releases (статические `.ttf` из `extras/ttf/`)
+- **JetBrains Mono** — https://github.com/JetBrains/JetBrainsMono/releases (статические `.ttf` из `fonts/ttf/`)
+
+### Программная реализация
+
+#### FontManager
+
+Центральный класс управления шрифтами — `app/bridge/font_manager.{h,cpp}`.
+
+**Особенности:**
+- Singleton-паттерн (`FontManager::instance()`)
+- Централизует логику загрузки шрифтов
+- Предоставляет API для проверки доступности шрифтов
+- Ведёт статистику загруженных/неуспешных шрифтов
+- Позволяет fallback (например, Inter-Medium → Inter-Regular — в будущем)
+
+**Публичный API:**
+
+```cpp
+// Загрузка всех шрифтов из папки fonts/ рядом с исполняемым файлом
+bool loadBundledFonts();
+
+// Проверка, загружен ли конкретный шрифт
+bool isFontAvailable(const QString& fontFamily) const;
+
+// Список загруженных семейств шрифтов
+QStringList loadedFontFamilies() const;
+
+// Список ожидаемых, но не загруженных шрифтов
+QStringList failedFontFamilies() const;
+```
+
+#### Загрузка в runtime (app/main.cpp)
+
+```cpp
+#include "bridge/font_manager.h"
+
+int main(int argc, char* argv[]) {
+    QGuiApplication app(argc, argv);
+    app.setOrganizationName(QStringLiteral("lusakey"));
+    app.setApplicationName(QStringLiteral("lusakey"));
+
+    // Централизованная загрузка шрифтов
+    FontManager& fontManager = FontManager::instance();
+    if (!fontManager.loadBundledFonts()) {
+        // Warnings уже выведены FontManager::loadBundledFonts()
+    }
+
+    // ... остальная инициализация
+}
+```
+
+#### Конфигурация (CMake)
+
+`app/CMakeLists.txt` копирует файлы шрифтов post-build в `<папка_exe>/fonts/`:
+
+```cmake
+file(GLOB LUSAKEY_FONT_FILES "${CMAKE_SOURCE_DIR}/resources/fonts/*.ttf")
+if(LUSAKEY_FONT_FILES)
+    add_custom_command(TARGET lusakey POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:lusakey>/fonts>"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LUSAKEY_FONT_FILES} "$<TARGET_FILE_DIR:lusakey>/fonts>"
+        COMMENT "Copying bundled fonts next to the lusakey executable"
+        VERBATIM
+    )
+endif()
+```
+
+### Использование шрифтов в UI
+
+Шрифты регистрируются как **application-wide** через `QFontDatabase::addApplicationFont()`, поэтому они доступны в QML без дополнительной настройки.
+
+**Inter** используется для всех UI-элементов (заголовки, текст, кнопки).
+**JetBrains Mono** используется для отображения паролей и TOTP-кодов (для максимальной разборчивости).
+
+В QML можно использовать шрифты напрямую по имени:
+
+```qml
+Text {
+    text: "Hello"
+    font.family: "Inter"
+    font.weight: Font.Medium
+}
+
+Text {
+    text: "123456"
+    font.family: "JetBrains Mono"
+}
+```
+
+### Что происходит при отсутствии файлов
+
+Если файлы шрифтов отсутствуют (например, после `git clone` без скачивания бинарей):
+- `QFontDatabase::addApplicationFont()` возвращает `-1`
+- Выводится предупреждение в консоль
+- Приложение продолжает работу, используя системный шрифт по умолчанию
+
+**Это поведение сознательное:** приложение всегда запускается, даже без шрифтов Inter/JetBrains Mono.
+
+### Планы по улучшению
+
+**Текущие ограничения:**
+- Нет fallback-логики для замены отсутствующих вариантов (например, если `Inter-SemiBold` не загружен, будет использоваться `Inter-Regular`)
+- Предупреждения о провале загрузки выводятся только в консоль, не видны пользователю
+
+**Возможные улучшения:**
+1. Добавить fallback-логику (Inter-Medium → Inter-Regular, Inter-SemiBold → Inter-Medium и т.д.)
+2. Добавить API для показа уведомления о проблемах со шрифтами в UI
+3. Добавить тесты, проверяющие, что все необходимые шрифты загружены
+4. Документировать зависимость от шрифтов в `packaging/` скриптах
+
+## Статус
+
+- **Текущее состояние:** Реализован программный FontManager в `app/bridge/`
+- **Критичные проблемы:** Отсутствуют
+- **Известные пробелы:** См. раздел "Планы по улучшению"
+- **Блокирует релиз:** Нет
