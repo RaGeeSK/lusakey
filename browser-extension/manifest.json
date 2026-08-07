@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "LusaKey AutoFill",
+  "version": "0.1.0",
+  "description": "Автоматическая подстановка паролей из LusaKey — локального менеджера паролей.",
+  "icons": {
+    "16": "icons/lusakey-16.svg",
+    "48": "icons/lusakey-48.svg",
+    "128": "icons/lusakey-128.svg"
+  },
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/lusakey-16.svg",
+      "48": "icons/lusakey-48.svg",
+      "128": "icons/lusakey-128.svg"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

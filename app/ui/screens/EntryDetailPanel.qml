@@ -16,6 +16,14 @@ Item {
     property string totpCode: ""
     property int totpSecondsRemaining: 30
     property string totpLinkError: ""
+    // 0 = no folder (matches AppController::getEntry()'s "0 sentinel" and
+    // AppController::setEntryFolder()'s "0 clears it" convention).
+    property var folderId: 0
+    property var folderChoices: [{folderId: 0, name: qsTr("Без папки")}]
+
+    Component.onCompleted: {
+        folderChoices = [{folderId: 0, name: qsTr("Без папки")}].concat(appController.folderOptions());
+    }
 
     signal copyPasswordRequested(string password) // carries the field's *current* text, not the (stale) root.password
     signal copyTotpRequested()
@@ -83,6 +91,39 @@ Item {
                 placeholderText: qsTr("Логин")
             }
 
+            // Folder assignment — only offered once the entry exists
+            // (entryId !== null), same gate as the TOTP-link section below:
+            // a brand-new unsaved entry has no id yet to assign a folder to.
+            ColumnLayout {
+                visible: root.entryId !== null
+                Layout.fillWidth: true
+                spacing: Theme.space1
+
+                Text {
+                    text: qsTr("Папка")
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeCaption
+                }
+
+                AppComboBox {
+                    id: folderCombo
+                    Layout.fillWidth: true
+                    model: root.folderChoices
+                    textRole: "name"
+                    valueRole: "folderId"
+                    currentIndex: {
+                        for (let i = 0; i < root.folderChoices.length; i++) {
+                            if (root.folderChoices[i].folderId === root.folderId) {
+                                return i;
+                            }
+                        }
+                        return 0;
+                    }
+                    onActivated: appController.setEntryFolder(root.entryId, currentValue)
+                }
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.space2
@@ -99,6 +140,11 @@ Item {
                     text: qsTr("Копировать")
                     variant: "secondary"
                     onClicked: root.copyPasswordRequested(passwordField.text)
+                }
+                AppButton {
+                    text: qsTr("Сгенерировать")
+                    variant: "secondary"
+                    onClicked: generatorDialog.open()
                 }
             }
 
@@ -210,6 +256,29 @@ Item {
             // implicitHeight (what ScrollView measures) for symmetric
             // top/bottom padding when scrolled to the end.
             Item { Layout.preferredHeight: Theme.space5 }
+        }
+    }
+
+    GeneratorDialog {
+        id: generatorDialog
+
+        function regenerate() {
+            generatedPassword = appController.generatePassword(
+                length, includeUppercase, includeLowercase, includeDigits, includeSymbols, excludeAmbiguous);
+            strengthScore = appController.estimatePasswordStrength(generatedPassword);
+        }
+
+        onOpened: regenerate()
+        onRegenerateRequested: regenerate()
+        onLengthChanged: regenerate()
+        onIncludeUppercaseChanged: regenerate()
+        onIncludeLowercaseChanged: regenerate()
+        onIncludeDigitsChanged: regenerate()
+        onIncludeSymbolsChanged: regenerate()
+        onExcludeAmbiguousChanged: regenerate()
+        onUseRequested: function (generated) {
+            passwordField.text = generated;
+            close();
         }
     }
 }

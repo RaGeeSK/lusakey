@@ -1,12 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import Lusakey
 
-// Links an existing entry to a TOTP secret pasted as an otpauth://totp/...
-// URI — the format any 2FA issuer's QR code decodes to (see
-// AppController::setEntryTotp; there's no image/QR import here, just text).
-// Opened from the "Authenticator Codes" tab's "+ Добавить" button.
+// Links an existing entry to a TOTP secret — either pasted as an
+// otpauth://totp/... URI (the format any 2FA issuer's QR code decodes to),
+// or imported directly from a QR-code image file via
+// AppController::decodeTotpQrImage (see libs/qr). Opened from the
+// "Authenticator Codes" tab's "+ Добавить" button.
 Dialog {
     id: root
 
@@ -166,10 +168,32 @@ Dialog {
                 }
             }
 
-            AppTextField {
-                id: uriField
+            RowLayout {
                 Layout.fillWidth: true
-                placeholderText: qsTr("otpauth://totp/...")
+                spacing: Theme.space2
+
+                AppTextField {
+                    id: uriField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("otpauth://totp/...")
+                }
+                AppButton {
+                    text: qsTr("Импортировать QR")
+                    variant: "secondary"
+                    onClicked: qrFileDialog.open()
+                }
+            }
+
+            FileDialog {
+                id: qrFileDialog
+                title: qsTr("Выбрать изображение QR-кода")
+                nameFilters: [qsTr("Изображения (*.png *.jpg *.jpeg *.bmp *.gif)")]
+                onAccepted: {
+                    const uri = appController.decodeTotpQrImage(selectedFile);
+                    if (uri.length > 0) {
+                        uriField.text = uri;
+                    }
+                }
             }
 
             Text {

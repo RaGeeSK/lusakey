@@ -1,7 +1,7 @@
 pragma Singleton
 import QtQuick
 
-// Design-token singleton for the whole app — Claude-inspired warm palette,
+// Design-token singleton for the whole app тАФ Claude-inspired warm palette,
 // see AGENTS.md for the source of these values and the reasoning behind
 // them (font substitutes, contrast notes, etc). Every component/screen
 // should reference Theme.* rather than hardcoding a color/size/font.
@@ -16,19 +16,19 @@ QtObject {
     // ---- Light palette ----
     // Anchor colors verified against real claude.ai extractions (not
     // invented): background "Pampas" #F4F3EE, neutral grey "Cloudy"
-    // #B1ADA1, accent "Crail" #C15F3C — see AGENTS.md for sources. Other
+    // #B1ADA1, accent "Crail" #C15F3C тАФ see AGENTS.md for sources. Other
     // steps (borders, hover/pressed states, disabled) are this project's own
     // interpolation between those anchors, not independently verified.
-    readonly property color _lightBgCanvas: "#F4F3EE"   // Pampas — verified
-    readonly property color _lightBgBase: "#E7E4DA"     // sidebar — leans toward Cloudy for a visibly grey panel
+    readonly property color _lightBgCanvas: "#F4F3EE"   // Pampas тАФ verified
+    readonly property color _lightBgBase: "#E7E4DA"     // sidebar тАФ leans toward Cloudy for a visibly grey panel
     readonly property color _lightSurface: "#FDFCFA"
     readonly property color _lightSurfaceRaised: "#FFFFFF"
     readonly property color _lightBorderSubtle: "#E3E0D6"
     readonly property color _lightBorderDefault: "#D6D2C5"
     readonly property color _lightTextPrimary: "#2B2823"
-    readonly property color _lightTextSecondary: "#847F72" // darkened Cloudy — Cloudy itself is too light for AA text contrast on Pampas
-    readonly property color _lightTextDisabled: "#B3AEA1" // Cloudy — verified
-    readonly property color _lightAccent: "#C15F3C"       // Crail — verified
+    readonly property color _lightTextSecondary: "#847F72" // darkened Cloudy тАФ Cloudy itself is too light for AA text contrast on Pampas
+    readonly property color _lightTextDisabled: "#B3AEA1" // Cloudy тАФ verified
+    readonly property color _lightAccent: "#C15F3C"       // Crail тАФ verified
     readonly property color _lightAccentHover: "#AA502F"
     readonly property color _lightAccentPressed: "#8F4026"
     readonly property color _lightAccentSubtle: "#1FC15F3C"
@@ -39,7 +39,7 @@ QtObject {
     // ---- Dark palette ----
     // Not independently verified (search sources only described real
     // Claude's dark mode qualitatively as "deep charcoal with soft linen
-    // text") — kept in the same warm-neutral family as the light palette,
+    // text") тАФ kept in the same warm-neutral family as the light palette,
     // with the accent lightened for legibility on a dark background.
     readonly property color _darkBgCanvas: "#1F1B16"
     readonly property color _darkBgBase: "#24201A"
@@ -79,8 +79,12 @@ QtObject {
 
     // ---- Typography ----
     // "Inter" / "JetBrains Mono" are open-license stand-ins for Claude's
-    // actual (proprietary, non-bundleable) Styrene/Tiempos — see AGENTS.md.
-    readonly property string fontFamily: "Inter"
+    // actual (proprietary, non-bundleable) Styrene/Tiempos тАФ see AGENTS.md.
+    // fontFamily is user-selectable: the controller persists the choice
+    // (QSettings "appearance/fontFamily") and every component that binds
+    // Theme.fontFamily follows it live. monoFontFamily stays fixed so
+    // passwords/TOTP codes always render in a monospace face.
+    property string fontFamily: appController.currentFontFamily
     readonly property string monoFontFamily: "JetBrains Mono"
 
     readonly property int fontSizeH1: 28

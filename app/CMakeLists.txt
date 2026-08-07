@@ -16,6 +16,10 @@ qt_add_executable(lusakey
     bridge/totp_list_model.cpp
     bridge/activity_event_filter.h
     bridge/activity_event_filter.cpp
+    bridge/folder_list_model.h
+    bridge/folder_list_model.cpp
+    bridge/font_manager.h
+    bridge/font_manager.cpp
 )
 
 # Marks Theme.qml as the module's singleton (accessed as `Theme` from any
@@ -39,6 +43,7 @@ qt_add_qml_module(lusakey
         ui/components/AppSpinBox.qml
         ui/components/AppSwitch.qml
         ui/components/AppCheckBox.qml
+        ui/components/AppComboBox.qml
         ui/components/AppSlider.qml
         ui/components/EyeIcon.qml
         ui/components/LockIcon.qml
@@ -55,6 +60,7 @@ qt_add_qml_module(lusakey
         ui/screens/TotpView.qml
         ui/screens/GeneratorDialog.qml
         ui/screens/SettingsScreen.qml
+        ui/screens/FontSelectorScreen.qml
         ui/screens/RecoverySetupDialog.qml
         ui/screens/LinkTotpDialog.qml
 )

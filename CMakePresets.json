@@ -4,7 +4,7 @@
     {
       "name": "base",
       "hidden": true,
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/b",
       "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
@@ -33,11 +33,11 @@
     {
       "name": "windows-x64-release",
       "inherits": "windows-x64",
-      "binaryDir": "${sourceDir}/build/windows-x64-release",
+      "binaryDir": "${sourceDir}/b-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "LUSAKEY_BUILD_APP": "ON",
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.7.3/msvc2019_64"
+        "LUSAKEY_BUILD_NMHOST": "ON"
       }
     }
   ],

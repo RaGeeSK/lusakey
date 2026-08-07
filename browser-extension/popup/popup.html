@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LusaKey</title>
+    <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+    <div id="app">
+        <div id="header">
+            <img src="../icons/lusakey-48.png" alt="LusaKey" class="logo" />
+            <h1>LusaKey</h1>
+            <span id="status-badge" class="badge badge-locked">закрыт</span>
+        </div>
+
+        <div id="locked-view" class="view">
+            <p class="hint">Введите мастер-пароль для разблокировки хранилища</p>
+            <input type="password" id="password-input" placeholder="Мастер-пароль" />
+            <button id="unlock-btn" class="btn btn-primary">Разблокировать</button>
+            <div id="unlock-error" class="error hidden"></div>
+        </div>
+
+        <div id="unlocked-view" class="view hidden">
+            <div id="search-row">
+                <input type="text" id="search-input" placeholder="Поиск записей..." />
+            </div>
+            <div id="match-info" class="hint hidden">
+                Показаны записи, подходящие к текущему сайту
+            </div>
+            <div id="entry-list"></div>
+            <div id="no-matches" class="empty hidden">
+                Нет подходящих записей для этого сайта
+            </div>
+            <div id="all-entries" class="hidden">
+                <div class="section-title">Все записи</div>
+                <div id="all-entry-list"></div>
+            </div>
+            <div id="no-entries" class="empty hidden">
+                В хранилище нет записей
+            </div>
+            <button id="lock-btn" class="btn btn-secondary">Заблокировать</button>
+        </div>
+
+        <div id="error-view" class="view hidden">
+            <p class="error">Не удалось подключиться к LusaKey.<br />Убедитесь, что приложение установлено.</p>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

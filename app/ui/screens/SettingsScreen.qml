@@ -9,6 +9,7 @@ Item {
     signal exportRequested()
     signal importRequested()
     signal changeMasterPasswordRequested()
+    signal fontRequested()
     signal backRequested()
 
     Rectangle {
@@ -194,6 +195,22 @@ Item {
                         AppSwitch {
                             checked: Theme.darkMode
                             onToggled: Theme.darkMode = checked
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("Шрифт интерфейса")
+                            color: Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            wrapMode: Text.WordWrap
+                        }
+                        AppButton {
+                            text: appController.currentFontFamily
+                            variant: "secondary"
+                            onClicked: root.fontRequested()
                         }
                     }
                 }

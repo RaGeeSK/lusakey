@@ -149,6 +149,16 @@ bool VaultModel::removeFolder(FolderId id) {
     return folders_.size() != before;
 }
 
+bool VaultModel::renameFolder(FolderId id, const std::string& name) {
+    const auto it = std::find_if(folders_.begin(), folders_.end(),
+                                  [id](const Folder& f) { return f.id == id; });
+    if (it == folders_.end()) {
+        return false;
+    }
+    it->name = name;
+    return true;
+}
+
 const Entry* VaultModel::findEntry(EntryId id) const {
     const auto it = entries_.find(id);
     return it == entries_.end() ? nullptr : &it->second;

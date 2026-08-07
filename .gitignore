@@ -6,6 +6,7 @@ out/
 CMakeUserPresets.json
 vcpkg_installed/
 .DS_Store
+.gigacode/
 
 # Локальный ярлык для запуска + его лончер (зашит абсолютный путь к Qt на
 # этой машине — не переносимый артефакт проекта, см. scripts/windows/).
@@ -16,3 +17,9 @@ scripts/windows/run-lusakey.cmd
 # бинарники, генерируются scripts/windows/build-release.ps1, публикуются
 # в GitHub Releases, а не хранятся в самом репозитории.
 /release/
+
+# Мусор и служебные артефакты, не относящиеся к проекту.
+*-DESKTOP-IVUL9MJ*
+$null
+aqtinstall.log
+*.pdb

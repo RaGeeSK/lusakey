@@ -92,6 +92,156 @@ TEST_CASE("VaultService methods require the vault to be unlocked", "[vault_servi
     REQUIRE_THROWS_AS(service.addEntry(EntryDraft{}), ServiceException);
 }
 
+TEST_CASE("VaultService folder methods require the vault to be unlocked", "[vault_service][folders]") {
+    VaultService service;
+    REQUIRE_THROWS_AS(service.listFolders(), ServiceException);
+    REQUIRE_THROWS_AS(service.addFolder("Work"), ServiceException);
+    REQUIRE_THROWS_AS(service.renameFolder(1, "Work2"), ServiceException);
+    REQUIRE_THROWS_AS(service.removeFolder(1), ServiceException);
+}
+
+TEST_CASE("VaultService folder CRUD add/rename/remove round-trips and orphans entries", "[vault_service][folders]") {
+    const auto path = tempVaultPath("lusakey_svc_folder_crud.lusakey");
+    std::filesystem::remove(path);
+
+    VaultService service;
+    service.createVault(path, "master password", testKdf());
+
+    const auto folderId = service.addFolder("Work");
+    REQUIRE(service.listFolders().size() == 1);
+    REQUIRE(service.listFolders()[0].name == "Work");
+
+    EntryDraft draft;
+    draft.title = "Work Entry";
+    draft.folderId = folderId;
+    const auto entryId = service.addEntry(draft);
+    REQUIRE(service.getEntry(entryId).folderId == folderId);
+
+    service.renameFolder(folderId, "Work Stuff");
+    REQUIRE(service.listFolders()[0].name == "Work Stuff");
+
+    service.removeFolder(folderId);
+    REQUIRE(service.listFolders().empty());
+    REQUIRE_FALSE(service.getEntry(entryId).folderId.has_value()); // orphaned, not deleted
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("VaultService addFolder/renameFolder reject empty names", "[vault_service][folders]") {
+    const auto path = tempVaultPath("lusakey_svc_folder_empty_name.lusakey");
+    std::filesystem::remove(path);
+
+    VaultService service;
+    service.createVault(path, "master password", testKdf());
+
+    REQUIRE_THROWS_AS(service.addFolder(""), ServiceException);
+    const auto folderId = service.addFolder("Real Folder");
+    REQUIRE_THROWS_AS(service.renameFolder(folderId, ""), ServiceException);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("VaultService renameFolder/removeFolder throw FolderNotFound for a missing id", "[vault_service][folders]") {
+    const auto path = tempVaultPath("lusakey_svc_folder_missing.lusakey");
+    std::filesystem::remove(path);
+
+    VaultService service;
+    service.createVault(path, "master password", testKdf());
+
+    bool threwRename = false;
+    try {
+        service.renameFolder(999, "New Name");
+    } catch (const ServiceException& e) {
+        threwRename = true;
+        REQUIRE(e.code() == ServiceError::FolderNotFound);
+    }
+    REQUIRE(threwRename);
+
+    bool threwRemove = false;
+    try {
+        service.removeFolder(999);
+    } catch (const ServiceException& e) {
+        threwRemove = true;
+        REQUIRE(e.code() == ServiceError::FolderNotFound);
+    }
+    REQUIRE(threwRemove);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("VaultService listEntries filters by folder including the unfiled sentinel", "[vault_service][folders]") {
+    const auto path = tempVaultPath("lusakey_svc_folder_filter.lusakey");
+    std::filesystem::remove(path);
+
+    VaultService service;
+    service.createVault(path, "master password", testKdf());
+
+    const auto folderA = service.addFolder("A");
+    const auto folderB = service.addFolder("B");
+
+    EntryDraft inA;
+    inA.title = "In A";
+    inA.folderId = folderA;
+    service.addEntry(inA);
+
+    EntryDraft inB;
+    inB.title = "In B";
+    inB.folderId = folderB;
+    service.addEntry(inB);
+
+    EntryDraft unfiled;
+    unfiled.title = "Unfiled";
+    service.addEntry(unfiled);
+
+    REQUIRE(service.listEntries().size() == 3); // no filter -> all
+
+    EntryFilter filterA;
+    filterA.folderId = folderA;
+    const auto resultsA = service.listEntries(filterA);
+    REQUIRE(resultsA.size() == 1);
+    REQUIRE(resultsA[0].title == "In A");
+
+    EntryFilter filterUnfiled;
+    filterUnfiled.folderId = FolderId{0};
+    const auto resultsUnfiled = service.listEntries(filterUnfiled);
+    REQUIRE(resultsUnfiled.size() == 1);
+    REQUIRE(resultsUnfiled[0].title == "Unfiled");
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("VaultService folders persist through lock/unlock", "[vault_service][folders]") {
+    const auto path = tempVaultPath("lusakey_svc_folder_persist.lusakey");
+    std::filesystem::remove(path);
+
+    FolderId folderId;
+    {
+        VaultService service;
+        service.createVault(path, "master password", testKdf());
+        folderId = service.addFolder("Persisted");
+        EntryDraft draft;
+        draft.title = "Persisted Entry";
+        draft.folderId = folderId;
+        service.addEntry(draft);
+        service.lock();
+    }
+
+    VaultService service;
+    service.unlock(path, "master password");
+    const auto folders = service.listFolders();
+    REQUIRE(folders.size() == 1);
+    REQUIRE(folders[0].id == folderId);
+    REQUIRE(folders[0].name == "Persisted");
+
+    EntryFilter filter;
+    filter.folderId = folderId;
+    const auto entries = service.listEntries(filter);
+    REQUIRE(entries.size() == 1);
+    REQUIRE(entries[0].title == "Persisted Entry");
+
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("VaultService search filters by title/username/url", "[vault_service]") {
     const auto path = tempVaultPath("lusakey_svc_search.lusakey");
     std::filesystem::remove(path);
