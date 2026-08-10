@@ -43,6 +43,7 @@ qt_add_qml_module(lusakey
         ui/components/AppSpinBox.qml
         ui/components/AppSwitch.qml
         ui/components/AppCheckBox.qml
+        ui/components/AppComboBox.qml
         ui/components/AppSlider.qml
         ui/components/EyeIcon.qml
         ui/components/LockIcon.qml
