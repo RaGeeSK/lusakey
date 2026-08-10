@@ -66,6 +66,72 @@ ApplicationWindow {
         initialItem: unlockScreenComponent
     }
 
+    Dialog {
+        id: browserLoginDialog
+        parent: Overlay.overlay
+        modal: true
+        focus: true
+        closePolicy: Popup.NoAutoClose
+        width: 440
+        padding: Theme.space5
+
+        background: Rectangle {
+            radius: Theme.radiusLg
+            color: Theme.surfaceRaised
+            border.width: 1
+            border.color: Theme.borderDefault
+        }
+
+        contentItem: Column {
+            spacing: Theme.space4
+
+            Text {
+                width: parent.width
+                text: qsTr("Подтвердить вход из браузера")
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeH2
+                font.weight: Font.DemiBold
+                wrapMode: Text.WordWrap
+            }
+
+            Text {
+                width: parent.width
+                text: qsTr("Расширение LusaKey запросило доступ к вашему хранилищу. Введите мастер-пароль, чтобы разрешить вход.")
+                color: Theme.textSecondary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeBody
+                wrapMode: Text.WordWrap
+            }
+
+            AppTextField {
+                id: browserLoginPassword
+                width: parent.width
+                placeholderText: qsTr("Мастер-пароль")
+                revealable: true
+                onAccepted: appController.approveBrowserLogin(text)
+            }
+
+            Row {
+                width: parent.width
+                spacing: Theme.space2
+
+                AppButton {
+                    text: qsTr("Отклонить")
+                    variant: "secondary"
+                    onClicked: appController.denyBrowserLogin()
+                }
+                AppButton {
+                    text: qsTr("Подтвердить вход")
+                    enabled: browserLoginPassword.text.length > 0
+                    onClicked: appController.approveBrowserLogin(browserLoginPassword.text)
+                }
+            }
+        }
+
+        onOpened: browserLoginPassword.forceActiveFocus()
+    }
+
     Component {
         id: unlockScreenComponent
         UnlockScreen {
@@ -189,6 +255,14 @@ ApplicationWindow {
 
     Connections {
         target: appController
+        function onBrowserLoginRequestedChanged() {
+            if (appController.browserLoginToken.length > 0) {
+                browserLoginPassword.text = ""
+                browserLoginDialog.open()
+            } else {
+                browserLoginDialog.close()
+            }
+        }
         function onUnlocked() {
             stack.replace(vaultListComponent);
         }

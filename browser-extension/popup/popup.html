@@ -9,15 +9,14 @@
 <body>
     <div id="app">
         <div id="header">
-            <img src="../icons/lusakey-48.png" alt="LusaKey" class="logo" />
+            <img src="../icons/lusakey-48.svg" alt="LusaKey" class="logo" />
             <h1>LusaKey</h1>
             <span id="status-badge" class="badge badge-locked">закрыт</span>
         </div>
 
         <div id="locked-view" class="view">
-            <p class="hint">Введите мастер-пароль для разблокировки хранилища</p>
-            <input type="password" id="password-input" placeholder="Мастер-пароль" />
-            <button id="unlock-btn" class="btn btn-primary">Разблокировать</button>
+            <p class="hint">Вход подтверждается в приложении LusaKey. Мастер-пароль не передаётся расширению.</p>
+            <button id="app-login-btn" class="btn btn-primary">Войти в приложении</button>
             <div id="unlock-error" class="error hidden"></div>
         </div>
 

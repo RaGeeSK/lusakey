@@ -3,13 +3,20 @@
 #include <algorithm>
 
 #include <QClipboard>
+#include <QFile>
 #include <QDir>
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QImage>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTimer>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <wincrypt.h>
+#endif
 
 #include "lusakey/core/totp/otpauth_uri.h"
 #include "lusakey/core/util/password_generator.h"
@@ -29,6 +36,14 @@ using lusakey::core::vault::TotpSpec;
 namespace {
 constexpr int kDefaultAutoLockMinutes = 5;
 constexpr int kDefaultClipboardClearSeconds = 20;
+
+QString browserLoginDirectory() {
+    const auto testDir = qEnvironmentVariable("LUSAKEY_TEST_VAULT_DIR");
+    const auto baseDir = testDir.isEmpty()
+        ? QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        : testDir;
+    return baseDir + QStringLiteral("/browser-login");
+}
 } // namespace
 
 AppController::AppController(QObject* parent)
@@ -743,4 +758,68 @@ void AppController::setFontFamily(const QString& fontFamily) {
     currentFontFamily_ = fontFamily;
     settings_.setValue(QStringLiteral("appearance/fontFamily"), fontFamily);
     emit fontFamilyChanged();
+}
+
+void AppController::beginBrowserLogin(const QString& token) {
+    static const QRegularExpression tokenPattern(QStringLiteral("^[0-9a-f]{32}$"));
+    if (!tokenPattern.match(token).hasMatch()) {
+        emit errorOccurred(QStringLiteral("Некорректный запрос входа из браузера."));
+        return;
+    }
+    browserLoginToken_ = token;
+    emit browserLoginRequestedChanged();
+}
+
+void AppController::approveBrowserLogin(const QString& masterPassword) {
+    if (browserLoginToken_.isEmpty() || masterPassword.isEmpty()) {
+        emit errorOccurred(QStringLiteral("Введите мастер-пароль для подтверждения входа."));
+        return;
+    }
+
+#ifdef Q_OS_WIN
+    const auto directory = browserLoginDirectory();
+    QDir().mkpath(directory);
+    QByteArray passwordBytes = masterPassword.toUtf8();
+    DATA_BLOB input{static_cast<DWORD>(passwordBytes.size()),
+                    reinterpret_cast<BYTE*>(passwordBytes.data())};
+    DATA_BLOB encrypted{};
+    const bool protectedOk = CryptProtectData(&input, L"lusakey browser login", nullptr, nullptr, nullptr,
+                                               CRYPTPROTECT_UI_FORBIDDEN, &encrypted);
+    SecureZeroMemory(passwordBytes.data(), passwordBytes.size());
+    if (!protectedOk) {
+        emit errorOccurred(QStringLiteral("Не удалось защитить подтверждение входа."));
+        return;
+    }
+
+    QFile response(directory + QLatin1Char('/') + browserLoginToken_ + QStringLiteral(".response"));
+    if (!response.open(QIODevice::WriteOnly | QIODevice::Truncate)
+        || response.write(reinterpret_cast<const char*>(encrypted.pbData), encrypted.cbData) != encrypted.cbData) {
+        LocalFree(encrypted.pbData);
+        emit errorOccurred(QStringLiteral("Не удалось отправить подтверждение в браузер."));
+        return;
+    }
+    response.close();
+    LocalFree(encrypted.pbData);
+#else
+    Q_UNUSED(masterPassword)
+    emit errorOccurred(QStringLiteral("Подтверждение входа из браузера пока доступно только в Windows."));
+    return;
+#endif
+
+    browserLoginToken_.clear();
+    emit browserLoginRequestedChanged();
+}
+
+void AppController::denyBrowserLogin() {
+    if (browserLoginToken_.isEmpty()) {
+        return;
+    }
+    const auto directory = browserLoginDirectory();
+    QDir().mkpath(directory);
+    QFile denied(directory + QLatin1Char('/') + browserLoginToken_ + QStringLiteral(".denied"));
+    if (denied.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        denied.write("denied");
+    }
+    browserLoginToken_.clear();
+    emit browserLoginRequestedChanged();
 }

@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <unordered_map>
 
 #include "lusakey/core/vault/vault_service.h"
 
@@ -18,7 +19,7 @@ namespace lusakey::nmhost {
 //
 // Protocol: request {"action": "<name>", ...params}, response either
 // {"ok": true, "result": ...} or {"ok": false, "error": "...", "code": "..."}.
-// Actions: ping, unlock(password), lock, listEntries(searchText?),
+// Actions: ping, requestAppLogin, getAppLoginStatus, lock, listEntries(searchText?),
 // getEntry(id), getCredentialsForUrl(url), currentTotpCode(id),
 // generatePassword(length?,
 // includeUppercase?, includeLowercase?, includeDigits?, includeSymbols?,
@@ -33,6 +34,7 @@ public:
 private:
     lusakey::core::vault::VaultService& service_;
     std::filesystem::path vaultPath_;
+    std::unordered_map<std::string, std::string> browserLoginStates_;
 };
 
 } // namespace lusakey::nmhost

@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 
 #include "lusakey/core/util/password_generator.h"
+#include "lusakey/nmhost/browser_login.h"
 
 using lusakey::core::util::PasswordGeneratorOptions;
 using lusakey::core::vault::EntryFilter;
@@ -68,6 +69,36 @@ std::string RequestDispatcher::dispatch(const std::string& rawJson) {
     try {
         if (action == "ping") {
             return okResponse("pong");
+        }
+        if (action == "requestAppLogin") {
+            const auto requestId = beginBrowserLogin();
+            browserLoginStates_[requestId] = "pending";
+            return okResponse({{"requestId", requestId}, {"status", "pending"}});
+        }
+        if (action == "getAppLoginStatus") {
+            const auto requestId = request.at("requestId").get<std::string>();
+            const auto known = browserLoginStates_.find(requestId);
+            if (known == browserLoginStates_.end()) {
+                return errorResponse("browser-login request is unknown", "UnknownBrowserLogin");
+            }
+            if (known->second == "pending") {
+                const auto handoff = consumeBrowserLogin(requestId);
+                if (handoff.state == BrowserLoginState::Approved) {
+                    try {
+                        service_.unlock(vaultPath_, handoff.password);
+                        known->second = "approved";
+                    } catch (const ServiceException& e) {
+                        known->second = "failed";
+                        return okResponse({{"status", "failed"}, {"error", e.what()}});
+                    }
+                } else if (handoff.state == BrowserLoginState::Denied) {
+                    known->second = "denied";
+                } else if (handoff.state == BrowserLoginState::Expired || handoff.state == BrowserLoginState::Failed) {
+                    known->second = "failed";
+                    return okResponse({{"status", "failed"}, {"error", handoff.error}});
+                }
+            }
+            return okResponse({{"status", known->second}});
         }
         if (action == "unlock") {
             service_.unlock(vaultPath_, request.at("password").get<std::string>());

@@ -83,6 +83,7 @@ target_compile_features(lusakey PRIVATE cxx_std_20)
 # desktop app).
 if(WIN32)
     set_target_properties(lusakey PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_link_libraries(lusakey PRIVATE crypt32 advapi32)
 endif()
 
 # Copy any bundled font files (see resources/fonts/README.md — not committed

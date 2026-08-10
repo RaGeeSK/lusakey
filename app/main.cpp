@@ -2,7 +2,11 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QFile>
 #include <QGuiApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QDebug>
@@ -22,6 +26,8 @@
 #include "bridge/folder_list_model.h"
 
 namespace {
+
+constexpr auto kBrowserExtensionId = "iahmcbccpfkgbljjiggegnbfpnkbeipc";
 
 void logHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
     FILE* f = nullptr;
@@ -65,6 +71,77 @@ QString exeDir() {
 #endif
 }
 
+#ifdef Q_OS_WIN
+void setNativeMessagingRegistryValue(const wchar_t* browserKey, const QString& manifestPath) {
+    HKEY key = nullptr;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, browserKey, 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key, nullptr) != ERROR_SUCCESS) {
+        qWarning() << "lusakey: could not register native messaging host";
+        return;
+    }
+    const auto path = manifestPath.toStdWString();
+    RegSetValueExW(key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE*>(path.c_str()),
+                   static_cast<DWORD>((path.size() + 1) * sizeof(wchar_t)));
+    RegCloseKey(key);
+}
+
+void configureBrowserNativeHost() {
+    const QDir appDir(QCoreApplication::applicationDirPath());
+    const QStringList candidates{
+        appDir.filePath(QStringLiteral("../nmhost/lusakey-nmhost.exe")),
+        appDir.filePath(QStringLiteral("lusakey-nmhost.exe")),
+    };
+    QString hostPath;
+    for (const auto& candidate : candidates) {
+        if (QFileInfo::exists(candidate)) {
+            hostPath = QFileInfo(candidate).absoluteFilePath();
+            break;
+        }
+    }
+    if (hostPath.isEmpty()) {
+        return; // GUI-only build: nothing to register.
+    }
+
+    const auto localAppData = qEnvironmentVariable("LOCALAPPDATA");
+    if (localAppData.isEmpty()) {
+        qWarning() << "lusakey: LOCALAPPDATA is unavailable; browser integration was not configured";
+        return;
+    }
+    const QDir manifestDir(localAppData + QStringLiteral("/lusakey/native-messaging"));
+    if (!QDir().mkpath(manifestDir.absolutePath())) {
+        qWarning() << "lusakey: could not create native-messaging directory";
+        return;
+    }
+
+    const QJsonObject manifest{
+        {QStringLiteral("name"), QStringLiteral("com.lusakey.nmhost")},
+        {QStringLiteral("description"), QStringLiteral("lusakey browser integration")},
+        {QStringLiteral("path"), QDir::toNativeSeparators(hostPath)},
+        {QStringLiteral("type"), QStringLiteral("stdio")},
+        {QStringLiteral("allowed_origins"), QJsonArray{QStringLiteral("chrome-extension://")
+                                                         + QString::fromLatin1(kBrowserExtensionId) + QLatin1Char('/')}},
+    };
+    const auto manifestPath = manifestDir.filePath(QStringLiteral("com.lusakey.nmhost.json"));
+    QFile manifestFile(manifestPath);
+    if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Truncate)
+        || manifestFile.write(QJsonDocument(manifest).toJson(QJsonDocument::Compact)) < 0) {
+        qWarning() << "lusakey: could not write native-messaging manifest";
+        return;
+    }
+    manifestFile.close();
+
+    setNativeMessagingRegistryValue(L"Software\\Google\\Chrome\\NativeMessagingHosts\\com.lusakey.nmhost", manifestPath);
+    setNativeMessagingRegistryValue(L"Software\\Microsoft\\Edge\\NativeMessagingHosts\\com.lusakey.nmhost", manifestPath);
+}
+#else
+void configureBrowserNativeHost() {}
+#endif
+
+QString browserLoginTokenFromArgs() {
+    const auto args = QCoreApplication::arguments();
+    const auto index = args.indexOf(QStringLiteral("--browser-login-token"));
+    return index >= 0 && index + 1 < args.size() ? args.at(index + 1) : QString{};
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -84,6 +161,7 @@ int main(int argc, char* argv[]) {
     qInstallMessageHandler(logHandler);
 
     loadBundledFonts();
+    configureBrowserNativeHost();
 
     AppController appController;
 
@@ -109,6 +187,13 @@ int main(int argc, char* argv[]) {
         [] { QGuiApplication::exit(-1); }, Qt::QueuedConnection);
 
     engine.loadFromModule("Lusakey", "Main");
+
+    const auto browserLoginToken = browserLoginTokenFromArgs();
+    if (!browserLoginToken.isEmpty()) {
+        QMetaObject::invokeMethod(&appController, [browserLoginToken, &appController] {
+            appController.beginBrowserLogin(browserLoginToken);
+        }, Qt::QueuedConnection);
+    }
 
     return app.exec();
 }

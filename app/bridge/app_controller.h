@@ -46,6 +46,7 @@ class AppController : public QObject {
     Q_PROPERTY(bool showWelcome READ showWelcome CONSTANT)
     Q_PROPERTY(QString currentFontFamily READ currentFontFamily WRITE setFontFamily NOTIFY fontFamilyChanged)
     Q_PROPERTY(QStringList fontFamilies READ fontFamilies CONSTANT)
+    Q_PROPERTY(QString browserLoginToken READ browserLoginToken NOTIFY browserLoginRequestedChanged)
 
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -82,6 +83,7 @@ public:
     QString currentFontFamily() const;
     QStringList fontFamilies() const;
     Q_INVOKABLE void setFontFamily(const QString& fontFamily);
+    QString browserLoginToken() const { return browserLoginToken_; }
 
     VaultListModel* vaultListModel() const { return vaultListModel_.get(); }
     TotpListModel* totpListModel() const { return totpListModel_.get(); }
@@ -186,6 +188,13 @@ public slots:
 
     void changeMasterPassword(const QString& oldPassword, const QString& newPassword);
 
+    // Called from main.cpp when nmhost opens the GUI for a browser-login
+    // confirmation. The master password is sent only to the local host via a
+    // one-time DPAPI-protected response; it never enters the extension.
+    void beginBrowserLogin(const QString& token);
+    void approveBrowserLogin(const QString& masterPassword);
+    void denyBrowserLogin();
+
 private:
     void createVault(const QString& masterPassword);
     void unlock(const QString& masterPassword);
@@ -211,6 +220,7 @@ signals:
     void clipboardClearEnabledChanged();
     void clipboardClearSecondsChanged();
     void fontFamilyChanged();
+    void browserLoginRequestedChanged();
     void unlocked();
     void locked();
     void errorOccurred(const QString& message);
@@ -237,4 +247,5 @@ private:
     int clipboardClearSeconds_ = 20;
     QString currentFontFamily_;
     QStringList fontFamilies_;
+    QString browserLoginToken_;
 };

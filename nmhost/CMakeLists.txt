@@ -13,12 +13,24 @@
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(lusakey-nmhost-logic STATIC
+    src/browser_login.cpp
     src/request_dispatcher.cpp
     src/vault_path.cpp
 )
 target_include_directories(lusakey-nmhost-logic PUBLIC include)
 target_link_libraries(lusakey-nmhost-logic PUBLIC lusakey-core nlohmann_json::nlohmann_json)
 target_compile_features(lusakey-nmhost-logic PUBLIC cxx_std_20)
+
+if(WIN32)
+    target_link_libraries(lusakey-nmhost-logic PRIVATE bcrypt crypt32 shell32)
+    if(TARGET Qt6::Core)
+        get_target_property(LUSAKEY_QTCORE_DLL Qt6::Core IMPORTED_LOCATION_RELEASE)
+        if(LUSAKEY_QTCORE_DLL)
+            get_filename_component(LUSAKEY_QT_BIN_DIR "${LUSAKEY_QTCORE_DLL}" DIRECTORY)
+            target_compile_definitions(lusakey-nmhost-logic PRIVATE LUSAKEY_QT_BIN_DIR=L"${LUSAKEY_QT_BIN_DIR}")
+        endif()
+    endif()
+endif()
 
 if(LUSAKEY_BUILD_NMHOST)
     add_executable(lusakey-nmhost main.cpp)
