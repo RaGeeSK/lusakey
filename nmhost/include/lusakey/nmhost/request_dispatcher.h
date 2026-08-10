@@ -19,7 +19,8 @@ namespace lusakey::nmhost {
 // Protocol: request {"action": "<name>", ...params}, response either
 // {"ok": true, "result": ...} or {"ok": false, "error": "...", "code": "..."}.
 // Actions: ping, unlock(password), lock, listEntries(searchText?),
-// getEntry(id), currentTotpCode(id), generatePassword(length?,
+// getEntry(id), getCredentialsForUrl(url), currentTotpCode(id),
+// generatePassword(length?,
 // includeUppercase?, includeLowercase?, includeDigits?, includeSymbols?,
 // excludeAmbiguous?). Deliberately does NOT expose vault/folder creation —
 // nmhost only ever opens a vault the GUI already created.

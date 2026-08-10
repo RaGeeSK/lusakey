@@ -44,6 +44,8 @@ class AppController : public QObject {
     Q_PROPERTY(int clipboardClearSeconds READ clipboardClearSeconds WRITE setClipboardClearSeconds NOTIFY
                    clipboardClearSecondsChanged)
     Q_PROPERTY(bool showWelcome READ showWelcome CONSTANT)
+    Q_PROPERTY(QString currentFontFamily READ currentFontFamily WRITE setFontFamily NOTIFY fontFamilyChanged)
+    Q_PROPERTY(QStringList fontFamilies READ fontFamilies CONSTANT)
 
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -76,6 +78,10 @@ public:
     // Main.qml, not meant to change reactively mid-session.
     bool showWelcome() const;
     int clipboardClearSeconds() const { return clipboardClearSeconds_; }
+
+    QString currentFontFamily() const;
+    QStringList fontFamilies() const;
+    Q_INVOKABLE void setFontFamily(const QString& fontFamily);
 
     VaultListModel* vaultListModel() const { return vaultListModel_.get(); }
     TotpListModel* totpListModel() const { return totpListModel_.get(); }
@@ -204,6 +210,7 @@ signals:
     void autoLockMinutesChanged();
     void clipboardClearEnabledChanged();
     void clipboardClearSecondsChanged();
+    void fontFamilyChanged();
     void unlocked();
     void locked();
     void errorOccurred(const QString& message);
@@ -228,4 +235,6 @@ private:
     int autoLockMinutes_ = 5;
     bool clipboardClearEnabled_ = true;
     int clipboardClearSeconds_ = 20;
+    QString currentFontFamily_;
+    QStringList fontFamilies_;
 };

@@ -5,6 +5,7 @@
 #include <QClipboard>
 #include <QDir>
 #include <QFileInfo>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QImage>
 #include <QStandardPaths>
@@ -42,6 +43,13 @@ AppController::AppController(QObject* parent)
     clipboardClearSeconds_ =
         settings_.value(QStringLiteral("clipboardClearSeconds"), kDefaultClipboardClearSeconds).toInt();
     settings_.endGroup();
+
+    settings_.beginGroup(QStringLiteral("appearance"));
+    currentFontFamily_ = settings_.value(QStringLiteral("fontFamily"), QStringLiteral("Inter")).toString();
+    settings_.endGroup();
+
+    const QFontDatabase fontDatabase;
+    fontFamilies_ = fontDatabase.families();
 
     autoLockTimer_ = new QTimer(this);
     autoLockTimer_->setInterval(autoLockMinutes_ * 60 * 1000);
@@ -717,4 +725,22 @@ void AppController::tickTotpList() {
         updated.push_back(buildTotpRow(static_cast<EntryId>(row.entryId), row.title.toStdString()));
     }
     totpListModel_->updateTiming(updated);
+}
+
+QString AppController::currentFontFamily() const {
+    return currentFontFamily_;
+}
+
+QStringList AppController::fontFamilies() const {
+    return fontFamilies_;
+}
+
+void AppController::setFontFamily(const QString& fontFamily) {
+    if (!fontFamilies_.contains(fontFamily) || currentFontFamily_ == fontFamily) {
+        return;
+    }
+
+    currentFontFamily_ = fontFamily;
+    settings_.setValue(QStringLiteral("appearance/fontFamily"), fontFamily);
+    emit fontFamilyChanged();
 }

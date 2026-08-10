@@ -23,12 +23,12 @@ ApplicationWindow {
     Component.onCompleted: {
         Theme.darkMode = Qt.styleHints.colorScheme === Qt.Dark;
 
-        // Never let the window shrink below the unlock screen's own card —
+        // Never let the window shrink below the unlock screen's own card тАФ
         // read once here (not bound) since the card's height changes with
         // UnlockScreen's `mode` (recovery/delete flows), and the window
         // should keep this floor even after unlocking into other screens.
         // Read from stack.get(0) (always the unlock screen), not
-        // stack.currentItem — the latter is WelcomeScreen right after this
+        // stack.currentItem тАФ the latter is WelcomeScreen right after this
         // if showWelcome is true, which has no cardWidth/cardHeight.
         const unlockItem = stack.get(0);
         if (unlockItem) {
@@ -45,7 +45,7 @@ ApplicationWindow {
     }
 
     // Grabbing focus for the password field right in Component.onCompleted
-    // doesn't reliably stick — the platform window itself often hasn't
+    // doesn't reliably stick тАФ the platform window itself often hasn't
     // finished becoming the OS-active/foreground window yet at that point,
     // so the keystrokes go nowhere until the user clicks the field once.
     // A short deferred retry (after requestActivate()) fixes it in practice.
@@ -163,6 +163,7 @@ ApplicationWindow {
         id: settingsComponent
         SettingsScreen {
             onBackRequested: stack.pop()
+            onFontRequested: stack.push(fontSelectorComponent)
             onExportRequested: {
                 // TODO: replace with a QtQuick.Dialogs FileDialog for the destination path.
                 console.warn("lusakey: export not wired to a file picker yet");
@@ -176,6 +177,13 @@ ApplicationWindow {
                 // appController.changeMasterPassword(oldPw, newPw).
                 console.warn("lusakey: change-master-password dialog not built yet");
             }
+        }
+    }
+
+    Component {
+        id: fontSelectorComponent
+        FontSelectorScreen {
+            onBackRequested: stack.pop()
         }
     }
 

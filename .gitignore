@@ -17,3 +17,9 @@ scripts/windows/run-lusakey.cmd
 # в GitHub Releases, а не хранятся в самом репозитории.
 /release/
 RaGeeSK.md
+
+# Локальные артефакты разработки и отладки.
+*-DESKTOP-IVUL9MJ*
+$null
+aqtinstall.log
+*.pdb

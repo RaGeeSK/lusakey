@@ -1,36 +1,42 @@
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QDebug>
+#include <QMessageLogContext>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #ifdef __linux__
 #include <sys/prctl.h>
 #endif
 
 #include "bridge/activity_event_filter.h"
 #include "bridge/app_controller.h"
-// Needed for the complete VaultListModel (QObject-derived) type: without
-// it, app_controller.h's forward declaration leaves setContextProperty()
-// unable to see it's a QObject*, so overload resolution falls through to
-// the QVariant overload and fails with a deleted-constructor error.
 #include "bridge/vault_list_model.h"
 #include "bridge/totp_list_model.h"
 #include "bridge/folder_list_model.h"
 
 namespace {
 
-// Fonts are loaded from a plain filesystem path next to the executable
-// (resolved from applicationDirPath(), NOT the current working directory —
-// a bare relative path would break depending on how the exe is launched,
-// e.g. a desktop shortcut with a different working directory), NOT embedded
-// via the Qt resource system — see resources/fonts/README.md and
-// app/CMakeLists.txt's post-build copy step for how the files get there.
-// The actual .ttf files (Inter, JetBrains Mono; both OFL). A missing file
-// just skips with a warning (QFontDatabase::addApplicationFont returns -1)
-// rather than failing.
+void logHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
+    FILE* f = nullptr;
+    fopen_s(&f, "C:\\Users\\MECHREVO\\AppData\\Local\\Temp\\lusakey_qt.log", "a");
+    if (f) {
+        fprintf(f, "[%s] %s (%s:%u)\n",
+                type == QtDebugMsg ? "DEBUG" :
+                type == QtWarningMsg ? "WARN" :
+                type == QtCriticalMsg ? "CRITICAL" : "FATAL",
+                msg.toLocal8Bit().constData(),
+                ctx.file ? ctx.file : "", ctx.line);
+        fclose(f);
+    }
+}
+
 void loadBundledFonts() {
     const QDir fontsDir(QCoreApplication::applicationDirPath() + QStringLiteral("/fonts"));
     const QStringList fileNames = {
@@ -49,29 +55,38 @@ void loadBundledFonts() {
     }
 }
 
+QString exeDir() {
+#ifdef Q_OS_WIN
+    wchar_t buf[MAX_PATH];
+    GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    return QFileInfo(QString::fromWCharArray(buf)).absolutePath();
+#else
+    return QCoreApplication::applicationDirPath();
+#endif
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
 #ifdef __linux__
-    // Best-effort: suppress core dumps of this process, since a core dump
-    // would contain decrypted vault secrets still resident in memory.
-    // Silently a no-op on kernels/configurations where it's disallowed —
-    // there's nothing actionable to surface to the user if it fails.
     prctl(PR_SET_DUMPABLE, 0);
+#endif
+
+#ifdef Q_OS_WIN
+    const QString appDir = exeDir();
+    qputenv("QT_PLUGIN_PATH", (appDir + "/plugins").toLocal8Bit());
+    qputenv("QML2_IMPORT_PATH", (appDir + "/../vcpkg_installed/x64-windows/Qt6/qml").toLocal8Bit());
 #endif
 
     QGuiApplication app(argc, argv);
     QGuiApplication::setOrganizationName(QStringLiteral("lusakey"));
     QGuiApplication::setApplicationName(QStringLiteral("lusakey"));
+    qInstallMessageHandler(logHandler);
 
     loadBundledFonts();
 
     AppController appController;
 
-    // App-wide auto-lock: reset the idle timer on any input activity
-    // anywhere in the window (see ActivityEventFilter's docs for what this
-    // does and doesn't cover), and lock immediately if the OS suspends the
-    // app or the window is hidden (covers sleep/minimize on most platforms).
     auto* activityFilter = new ActivityEventFilter(&appController, &app);
     app.installEventFilter(activityFilter);
 
@@ -83,6 +98,7 @@ int main(int argc, char* argv[]) {
                       });
 
     QQmlApplicationEngine engine;
+    engine.addImportPath(app.applicationDirPath() + QStringLiteral("/../vcpkg_installed/x64-windows/Qt6/qml"));
     engine.rootContext()->setContextProperty(QStringLiteral("appController"), &appController);
     engine.rootContext()->setContextProperty(QStringLiteral("vaultListModel"), appController.vaultListModel());
     engine.rootContext()->setContextProperty(QStringLiteral("totpListModel"), appController.totpListModel());

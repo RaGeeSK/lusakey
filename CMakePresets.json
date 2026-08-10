@@ -37,6 +37,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "LUSAKEY_BUILD_APP": "ON",
+        "LUSAKEY_BUILD_NMHOST": "ON",
         "CMAKE_PREFIX_PATH": "C:/Qt/6.7.3/msvc2019_64"
       }
     }

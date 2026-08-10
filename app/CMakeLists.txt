@@ -14,10 +14,12 @@ qt_add_executable(lusakey
     bridge/vault_list_model.cpp
     bridge/totp_list_model.h
     bridge/totp_list_model.cpp
-    bridge/folder_list_model.h
-    bridge/folder_list_model.cpp
     bridge/activity_event_filter.h
     bridge/activity_event_filter.cpp
+    bridge/folder_list_model.h
+    bridge/folder_list_model.cpp
+    bridge/font_manager.h
+    bridge/font_manager.cpp
 )
 
 # Marks Theme.qml as the module's singleton (accessed as `Theme` from any
@@ -51,7 +53,6 @@ qt_add_qml_module(lusakey
         ui/components/ShieldIcon.qml
         ui/components/GearIcon.qml
         ui/components/ChevronDownIcon.qml
-        ui/components/AppComboBox.qml
         ui/screens/WelcomeScreen.qml
         ui/screens/UnlockScreen.qml
         ui/screens/VaultListScreen.qml
@@ -59,6 +60,7 @@ qt_add_qml_module(lusakey
         ui/screens/TotpView.qml
         ui/screens/GeneratorDialog.qml
         ui/screens/SettingsScreen.qml
+        ui/screens/FontSelectorScreen.qml
         ui/screens/RecoverySetupDialog.qml
         ui/screens/LinkTotpDialog.qml
 )

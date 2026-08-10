@@ -93,6 +93,34 @@ std::string RequestDispatcher::dispatch(const std::string& rawJson) {
             }
             return okResponse(std::move(entries));
         }
+        if (action == "getCredentialsForUrl") {
+            const auto requestUrl = request.at("url").get<std::string>();
+            EntryFilter filter;
+            auto all = service_.listEntries(filter);
+            auto matches = nlohmann::json::array();
+            for (const auto& e : all) {
+                const auto fullEntry = service_.getEntry(e.id);
+                if (fullEntry.url.empty()) {
+                    continue;
+                }
+                // Match if entry's url is a host/substring of the request url
+                // or vice-versa — covers both exact-match and domain-match cases.
+                const auto& entryUrl = fullEntry.url;
+                const bool match = requestUrl.find(entryUrl) != std::string::npos
+                    || entryUrl.find(requestUrl) != std::string::npos;
+                if (!match) {
+                    continue;
+                }
+                matches.push_back({
+                    {"id", fullEntry.id},
+                    {"title", fullEntry.title},
+                    {"username", fullEntry.username},
+                    {"password", fullEntry.password},
+                    {"url", fullEntry.url},
+                });
+            }
+            return okResponse(std::move(matches));
+        }
         if (action == "getEntry") {
             const auto entry = service_.getEntry(request.at("id").get<EntryId>());
             return okResponse({
